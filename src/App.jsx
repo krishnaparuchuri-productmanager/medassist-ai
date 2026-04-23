@@ -52,7 +52,7 @@ const priorClaimsCorpus = [
 
 // ─── CLAUDE API HELPERS ───────────────────────────────────────
 // All API calls go through the secure Netlify serverless proxy (netlify/functions/claude.js).
-// The Anthropic API key is stored as an environment variable on the server — never in the browser.
+// The API key is stored safely in Netlify environment variables as ANTHROPIC_API_KEY.
 
 async function callClaude(prompt, systemPrompt = "") {
   try {
@@ -68,8 +68,7 @@ async function callClaude(prompt, systemPrompt = "") {
     });
     const data = await res.json();
     if (!data.content) {
-      // Anthropic returned an error — log it clearly and return null gracefully.
-      console.error("Claude API returned an error:", JSON.stringify(data));
+      console.error("Claude API error response:", JSON.stringify(data));
       return null;
     }
     return data.content.map(b => b.text || "").join("\n").replace(/```json|```/g, "").trim();
@@ -106,7 +105,7 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
     });
     const data = await res.json();
     if (!data.content) {
-      console.error("Claude vision API returned an error:", JSON.stringify(data));
+      console.error("Claude vision API error response:", JSON.stringify(data));
       return null;
     }
     return data.content.map(b => b.text || "").join("\n").replace(/```json|```/g, "").trim();
