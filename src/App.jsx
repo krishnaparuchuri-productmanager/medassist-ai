@@ -51,11 +51,19 @@ const priorClaimsCorpus = [
 ];
 
 // ─── CLAUDE API HELPERS ───────────────────────────────────────
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
+const ANTHROPIC_HEADERS = {
+  "Content-Type": "application/json",
+  "x-api-key": ANTHROPIC_API_KEY,
+  "anthropic-version": "2023-06-01",
+  "anthropic-dangerous-direct-browser-access": "true"
+};
+
 async function callClaude(prompt, systemPrompt = "") {
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: ANTHROPIC_HEADERS,
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1500,
@@ -88,7 +96,7 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
     ];
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: ANTHROPIC_HEADERS,
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 2000,
