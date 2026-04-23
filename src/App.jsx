@@ -51,19 +51,14 @@ const priorClaimsCorpus = [
 ];
 
 // ─── CLAUDE API HELPERS ───────────────────────────────────────
-const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-const ANTHROPIC_HEADERS = {
-  "Content-Type": "application/json",
-  "x-api-key": ANTHROPIC_API_KEY,
-  "anthropic-version": "2023-06-01",
-  "anthropic-dangerous-direct-browser-access": "true"
-};
+// All API calls go through the secure Netlify serverless proxy (netlify/functions/claude.js).
+// The Anthropic API key is stored as an environment variable on the server — never in the browser.
 
 async function callClaude(prompt, systemPrompt = "") {
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/.netlify/functions/claude", {
       method: "POST",
-      headers: ANTHROPIC_HEADERS,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 1500,
@@ -94,9 +89,9 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
         : { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
       { type: "text", text: prompt }
     ];
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/.netlify/functions/claude", {
       method: "POST",
-      headers: ANTHROPIC_HEADERS,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 2000,
