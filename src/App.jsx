@@ -60,13 +60,18 @@ async function callClaude(prompt, systemPrompt = "") {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-4-5",
         max_tokens: 1500,
         ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: [{ role: "user", content: prompt }]
       })
     });
     const data = await res.json();
+    if (!data.content) {
+      // Anthropic returned an error — log it clearly and return null gracefully.
+      console.error("Claude API returned an error:", JSON.stringify(data));
+      return null;
+    }
     return data.content.map(b => b.text || "").join("\n").replace(/```json|```/g, "").trim();
   } catch (e) {
     console.error("Claude API error:", e);
@@ -93,13 +98,17 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-4-5",
         max_tokens: 2000,
         ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: [{ role: "user", content }]
       })
     });
     const data = await res.json();
+    if (!data.content) {
+      console.error("Claude vision API returned an error:", JSON.stringify(data));
+      return null;
+    }
     return data.content.map(b => b.text || "").join("\n").replace(/```json|```/g, "").trim();
   } catch (e) {
     console.error("Claude vision error:", e);
