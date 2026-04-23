@@ -1,4 +1,4 @@
-# 🩺 MedAssist AI
+# 🩺 MedAssist AI   https://medassistaipoc.netlify.app/
 
 > **Claude-powered clinical workflow platform** — built as a product prototype by [Krishna Chowdari Paruchuri](https://github.com/krishnaparuchuri-productmanager), Product Manager.
 
