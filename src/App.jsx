@@ -65,9 +65,9 @@ async function callClaude(prompt, systemPrompt = "") {
       method: "POST",
       headers: ANTHROPIC_HEADERS,
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 1500,
-        system: systemPrompt,
+        ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: [{ role: "user", content: prompt }]
       })
     });
@@ -98,9 +98,9 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
       method: "POST",
       headers: ANTHROPIC_HEADERS,
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 2000,
-        system: systemPrompt,
+        ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: [{ role: "user", content }]
       })
     });
