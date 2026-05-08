@@ -2,7 +2,45 @@
 
 > **Claude-powered clinical workflow platform** — built as a product prototype by [Krishna Chowdari Paruchuri](https://github.com/krishnaparuchuri-productmanager), Product Manager.
 
+## 🎬 Product Walkthrough
+
+<video src="docs/walkthrough.mp4" controls width="100%" style="border-radius:12px"></video>
+
+> Can't see the video? [Download walkthrough.mp4](docs/walkthrough.mp4)
+
 A full-stack React web application that uses Anthropic's Claude API to automate and augment every stage of a clinical encounter — from patient registration through to insurance claim generation.
+
+---
+
+## 📸 Screenshots
+
+### Login
+![Login Screen](docs/screenshots/01_login.png)
+
+### 👩‍💼 Doctor Assistant Portal
+
+**Patient Registration** — Register patients and generate structured JSON payloads
+![Patient Registration](docs/screenshots/02_assistant_patient_registration.png)
+
+**Appointment Schedule** — AI-suggested time slots based on patient context
+![Appointments](docs/screenshots/03_assistant_appointments.png)
+
+**Claim Generation** — Auto-generates ICD-10/CPT codes with gap detection
+![Claim Generation](docs/screenshots/04_assistant_claim_generation.png)
+
+### 🩺 Doctor Portal
+
+**Patient Details** — Full demographics, medical history, and past visits
+![Patient Details](docs/screenshots/05_doctor_patient_details.png)
+
+**Capture Details** — Voice transcription and SOAP note extraction
+![Capture Details](docs/screenshots/06_doctor_capture_details.png)
+
+**Diagnostic Order** — Voice-dictated orders mapped to LOINC codes
+![Diagnostic Order](docs/screenshots/07_doctor_diagnostic_order.png)
+
+**Diagnostic Results** — Lab analysis, abnormality flagging, and trend charts
+![Diagnostic Results](docs/screenshots/08_doctor_diagnostic_results.png)
 
 ---
 
