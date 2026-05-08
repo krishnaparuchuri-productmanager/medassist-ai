@@ -4,78 +4,90 @@ import {
   ClipboardList, Mic, FlaskConical, Activity, Receipt,
   AlertCircle, CheckCircle2, Loader2, Volume2, Trash2,
   Search, ChevronRight, Sparkles, Square, Upload, X, TrendingUp,
-  Image as ImageIcon, FileUp
+  Image as ImageIcon, FileUp, Copy, Brain
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, ReferenceLine
 } from "recharts";
 
-// ─── SHARED SEED DATA ────────────────────────────────────────
+// ─── CONSTANTS ────────────────────────────────────────────────
+const MODEL = "claude-sonnet-4-6";
+const TODAY = new Date().toISOString().split("T")[0];
+
+// Static class maps — Tailwind purges dynamic string interpolations at build time
+const AC = {
+  teal: {
+    active:    "bg-teal-500/15 text-teal-300 border-teal-400",
+    icon:      "text-teal-400",
+    sel:       "border-teal-400 bg-teal-50",
+    roleSel:   "border-teal-400 bg-teal-400/10",
+    roleText:  "text-teal-300",
+    roleIcon:  "text-teal-400",
+    signIn:    "bg-teal-500 hover:bg-teal-600",
+    gradient:  "from-teal-400 to-teal-600",
+  },
+  indigo: {
+    active:    "bg-indigo-500/15 text-indigo-300 border-indigo-400",
+    icon:      "text-indigo-400",
+    sel:       "border-indigo-400 bg-indigo-50",
+    roleSel:   "border-indigo-400 bg-indigo-400/10",
+    roleText:  "text-indigo-300",
+    roleIcon:  "text-indigo-400",
+    signIn:    "bg-indigo-500 hover:bg-indigo-600",
+    gradient:  "from-indigo-400 to-indigo-600",
+  },
+};
+
+// ─── SEED DATA ────────────────────────────────────────────────
 const initialPatients = [
   {
-    id: "P1001",
-    name: "Anita Sharma",
-    age: 54,
-    gender: "Female",
-    phone: "+91-98xxxxxx12",
-    dob: "1971-03-14",
+    id: "P1001", name: "Anita Sharma", age: 54, gender: "Female",
+    phone: "+91-98xxxxxx12", dob: "1971-03-14",
     history: ["Hypertension (2018)", "Type 2 Diabetes (2020)"],
     pastVisits: [
-      { date: "2026-01-12", reason: "Follow-up HTN", diagnosis: "Essential hypertension" },
-      { date: "2025-09-03", reason: "Diabetic review", diagnosis: "T2DM controlled" }
+      { date: "2026-01-12", reason: "Follow-up HTN",    diagnosis: "Essential hypertension" },
+      { date: "2025-09-03", reason: "Diabetic review",  diagnosis: "T2DM controlled" }
     ],
     appointments: [{ date: "2026-04-22", time: "10:30 AM", doctor: "Dr. Rao" }],
-    capturedNote: null, diagnosticOrder: null, diagnosticResults: null, claim: null
+    capturedNote: null, diagnosticOrder: null, diagnosticResults: null, claim: null,
+    historicalReports: [], registrationInsights: null, aiBrief: null,
   },
   {
-    id: "P1002",
-    name: "Ravi Kumar",
-    age: 42,
-    gender: "Male",
-    phone: "+91-99xxxxxx45",
-    dob: "1983-07-22",
+    id: "P1002", name: "Ravi Kumar", age: 42, gender: "Male",
+    phone: "+91-99xxxxxx45", dob: "1983-07-22",
     history: ["Dyslipidemia (2022)"],
     pastVisits: [
       { date: "2025-12-10", reason: "Chest discomfort eval", diagnosis: "Atypical chest pain, R/O ACS" }
     ],
     appointments: [],
-    capturedNote: null, diagnosticOrder: null, diagnosticResults: null, claim: null
+    capturedNote: null, diagnosticOrder: null, diagnosticResults: null, claim: null,
+    historicalReports: [], registrationInsights: null, aiBrief: null,
   }
 ];
 
 const priorClaimsCorpus = [
-  { case: "HTN follow-up + lipid review", icd: ["I10", "E78.5"], cpt: ["99213", "80061"], denialPatterns: ["Missing BP reading in note when billing E/M level 3"] },
-  { case: "Diabetes review with labs", icd: ["E11.9"], cpt: ["99214", "83036", "80053"], denialPatterns: ["HbA1c billed without documented diabetes monitoring indication"] },
-  { case: "Chest pain workup", icd: ["R07.9"], cpt: ["99214", "93000", "71046"], denialPatterns: ["ECG billed without cardiac symptom documentation"] }
+  { case: "HTN follow-up + lipid review",   icd: ["I10", "E78.5"],  cpt: ["99213", "80061"], denialPatterns: ["Missing BP reading in note when billing E/M level 3"] },
+  { case: "Diabetes review with labs",       icd: ["E11.9"],          cpt: ["99214", "83036", "80053"], denialPatterns: ["HbA1c billed without documented diabetes monitoring indication"] },
+  { case: "Chest pain workup",               icd: ["R07.9"],          cpt: ["99214", "93000", "71046"], denialPatterns: ["ECG billed without cardiac symptom documentation"] }
 ];
 
-// ─── CLAUDE API HELPERS ───────────────────────────────────────
-// All API calls go through the secure Netlify serverless proxy (netlify/functions/claude.js).
-// The API key is stored safely in Netlify environment variables as ANTHROPIC_API_KEY.
-
+// ─── CLAUDE API ───────────────────────────────────────────────
 async function callClaude(prompt, systemPrompt = "") {
   try {
     const res = await fetch("/.netlify/functions/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1500,
+        model: MODEL, max_tokens: 2000,
         ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: [{ role: "user", content: prompt }]
       })
     });
     const data = await res.json();
-    if (!data.content) {
-      console.error("Claude API error response:", JSON.stringify(data));
-      return null;
-    }
-    return data.content.map(b => b.text || "").join("\n").replace(/```json|```/g, "").trim();
-  } catch (e) {
-    console.error("Claude API error:", e);
-    return null;
-  }
+    if (!data.content) { console.error("Claude error:", data); return null; }
+    return data.content.map(b => b.text || "").join("\n").trim();
+  } catch (e) { console.error("Claude error:", e); return null; }
 }
 
 async function callClaudeWithFile(prompt, file, systemPrompt = "") {
@@ -90,29 +102,60 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
     const content = [
       isPdf
         ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
-        : { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
+        : { type: "image",    source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
       { type: "text", text: prompt }
     ];
     const res = await fetch("/.netlify/functions/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2000,
+        model: MODEL, max_tokens: 2000,
         ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: [{ role: "user", content }]
       })
     });
     const data = await res.json();
-    if (!data.content) {
-      console.error("Claude vision API error response:", JSON.stringify(data));
-      return null;
-    }
-    return data.content.map(b => b.text || "").join("\n").replace(/```json|```/g, "").trim();
-  } catch (e) {
-    console.error("Claude vision error:", e);
-    return null;
-  }
+    if (!data.content) { console.error("Claude vision error:", data); return null; }
+    return data.content.map(b => b.text || "").join("\n").trim();
+  } catch (e) { console.error("Claude vision error:", e); return null; }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────
+// Strips markdown fences and JS comments before parsing — Claude occasionally adds them
+function parseJSON(raw) {
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .replace(/\/\/[^\n]*/g, "")
+    .trim();
+  try { return JSON.parse(cleaned); } catch { return null; }
+}
+
+async function copyText(text, toast) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Copied to clipboard");
+  } catch { toast("Copy failed", "error"); }
+}
+
+// ─── TOAST ────────────────────────────────────────────────────
+function Toast({ toasts }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none">
+      {toasts.map(t => (
+        <div key={t.id} className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-xl text-sm font-medium ${
+          t.type === "error" ? "bg-red-600 text-white" : "bg-slate-800 text-white"
+        }`}>
+          {t.type === "error"
+            ? <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            : <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── LOGIN ────────────────────────────────────────────────────
@@ -134,13 +177,13 @@ function LoginScreen({ onLogin }) {
           <p className="text-sm font-medium text-slate-300 mb-3">Select your role</p>
           <div className="grid grid-cols-2 gap-3 mb-5">
             {[
-              { r: "assistant", label: "Doctor Assistant", Icon: UserCog, color: "teal" },
-              { r: "doctor", label: "Doctor", Icon: Stethoscope, color: "indigo" }
+              { r: "assistant", label: "Doctor Assistant", Icon: UserCog,     color: "teal" },
+              { r: "doctor",    label: "Doctor",           Icon: Stethoscope, color: "indigo" }
             ].map(({ r, label, Icon, color }) => (
               <button key={r} onClick={() => setRole(r)}
-                className={`p-4 rounded-xl border-2 transition-all ${role === r ? `border-${color}-400 bg-${color}-400/10` : "border-slate-700 bg-slate-900/40 hover:border-slate-600"}`}>
-                <Icon className={`w-6 h-6 mx-auto mb-2 ${role === r ? `text-${color}-400` : "text-slate-400"}`} />
-                <div className={`text-sm font-medium ${role === r ? `text-${color}-300` : "text-slate-300"}`}>{label}</div>
+                className={`p-4 rounded-xl border-2 transition-all ${role === r ? AC[color].roleSel : "border-slate-700 bg-slate-900/40 hover:border-slate-600"}`}>
+                <Icon className={`w-6 h-6 mx-auto mb-2 ${role === r ? AC[color].roleIcon : "text-slate-400"}`} />
+                <div className={`text-sm font-medium ${role === r ? AC[color].roleText : "text-slate-300"}`}>{label}</div>
               </button>
             ))}
           </div>
@@ -150,7 +193,7 @@ function LoginScreen({ onLogin }) {
             <input type="password" placeholder="Password (demo: any)" value={password} onChange={e => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-slate-500" />
             <button onClick={() => role && username && onLogin({ role, username })} disabled={!role || !username}
-              className={`w-full py-2.5 rounded-lg font-medium transition-all ${role && username ? (role === "doctor" ? "bg-indigo-500 hover:bg-indigo-600" : "bg-teal-500 hover:bg-teal-600") + " text-white" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}>
+              className={`w-full py-2.5 rounded-lg font-medium transition-all ${role && username ? (AC[role]?.signIn || "") + " text-white" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}>
               Sign In
             </button>
           </div>
@@ -164,24 +207,24 @@ function LoginScreen({ onLogin }) {
 // ─── SIDEBAR ──────────────────────────────────────────────────
 function Sidebar({ user, screen, setScreen, onLogout }) {
   const isDoc = user.role === "doctor";
+  const ac = isDoc ? "indigo" : "teal";
   const items = isDoc
     ? [
-        { id: "patients", label: "Patient Details", icon: User },
-        { id: "capture", label: "Capture Details", icon: Mic },
-        { id: "orders", label: "Diagnostic Order", icon: FlaskConical },
-        { id: "results", label: "Diagnostic Results", icon: Activity }
+        { id: "patients",     label: "Patient Details",    icon: User },
+        { id: "capture",      label: "Capture Details",    icon: Mic },
+        { id: "orders",       label: "Diagnostic Order",   icon: FlaskConical },
+        { id: "results",      label: "Diagnostic Results", icon: Activity }
       ]
     : [
-        { id: "register", label: "Patient Registration", icon: ClipboardList },
-        { id: "appointments", label: "Appointments", icon: Calendar },
-        { id: "claims", label: "Claim Generation", icon: Receipt }
+        { id: "register",     label: "Patient Registration", icon: ClipboardList },
+        { id: "appointments", label: "Appointments",          icon: Calendar },
+        { id: "claims",       label: "Claim Generation",      icon: Receipt }
       ];
-  const ac = isDoc ? "indigo" : "teal";
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
       <div className="p-5 border-b border-slate-800">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${isDoc ? "from-indigo-400 to-indigo-600" : "from-teal-400 to-teal-600"} flex items-center justify-center`}>
+          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${AC[ac].gradient} flex items-center justify-center`}>
             <Stethoscope className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -195,8 +238,8 @@ function Sidebar({ user, screen, setScreen, onLogout }) {
           const active = screen === id;
           return (
             <button key={id} onClick={() => setScreen(id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all border-l-2 ${active ? `bg-${ac}-500/15 text-${ac}-300 border-${ac}-400` : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border-transparent"}`}>
-              <Icon className={`w-4 h-4 ${active ? `text-${ac}-400` : ""}`} />
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all border-l-2 ${active ? AC[ac].active : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border-transparent"}`}>
+              <Icon className={`w-4 h-4 ${active ? AC[ac].icon : ""}`} />
               <span className="flex-1 text-left">{label}</span>
               {active && <ChevronRight className="w-4 h-4" />}
             </button>
@@ -217,17 +260,20 @@ function Sidebar({ user, screen, setScreen, onLogout }) {
 // ─── PATIENT SELECTOR ─────────────────────────────────────────
 function PatientSelector({ patients, selectedId, onSelect, accent = "teal" }) {
   const [q, setQ] = useState("");
-  const filtered = patients.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) || p.id.includes(q));
+  const filtered = patients.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) || p.id.includes(q)
+  );
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 mb-5">
       <div className="flex items-center gap-2 mb-3">
         <Search className="w-4 h-4 text-slate-400" />
-        <input placeholder="Search patients..." value={q} onChange={e => setQ(e.target.value)} className="flex-1 text-sm outline-none" />
+        <input placeholder="Search patients..." value={q} onChange={e => setQ(e.target.value)}
+          className="flex-1 text-sm outline-none" />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {filtered.map(p => (
           <button key={p.id} onClick={() => onSelect(p.id)}
-            className={`text-left p-3 rounded-lg border transition-all ${selectedId === p.id ? `border-${accent}-400 bg-${accent}-50` : "border-slate-200 hover:border-slate-300"}`}>
+            className={`text-left p-3 rounded-lg border transition-all ${selectedId === p.id ? AC[accent].sel : "border-slate-200 hover:border-slate-300"}`}>
             <div className="text-sm font-medium text-slate-800">{p.name}</div>
             <div className="text-xs text-slate-500">{p.id} · {p.age}y · {p.gender}</div>
           </button>
@@ -237,7 +283,6 @@ function PatientSelector({ patients, selectedId, onSelect, accent = "teal" }) {
   );
 }
 
-// ─── SECTION HELPER ───────────────────────────────────────────
 function Section({ label, value }) {
   return (
     <div>
@@ -248,56 +293,140 @@ function Section({ label, value }) {
 }
 
 // ─── ASSISTANT: REGISTRATION ──────────────────────────────────
-function RegisterScreen({ patients, setPatients }) {
+function RegisterScreen({ patients, setPatients, toast }) {
   const [form, setForm] = useState({ name: "", age: "", gender: "Female", phone: "", dob: "" });
-  const [payload, setPayload] = useState(null);
-  const save = () => {
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [lastInsights, setLastInsights] = useState(null);
+
+  const save = async () => {
     if (!form.name || !form.age) return;
-    const p = { id: `P${1000 + patients.length + 1}`, ...form, age: parseInt(form.age), history: [], pastVisits: [], appointments: [], capturedNote: null, diagnosticOrder: null, diagnosticResults: null, claim: null };
-    setPatients([...patients, p]);
-    setPayload({ screen: "Patient Registration", phase: 1, patient: p });
+    const p = {
+      id: `P${1000 + patients.length + 1}`,
+      ...form, age: parseInt(form.age),
+      history: [], pastVisits: [], appointments: [],
+      capturedNote: null, diagnosticOrder: null, diagnosticResults: null,
+      claim: null, historicalReports: [], registrationInsights: null, aiBrief: null,
+    };
+    setPatients(prev => [...prev, p]);
     setForm({ name: "", age: "", gender: "Female", phone: "", dob: "" });
+    toast("Patient registered");
+
+    setInsightLoading(true);
+    setLastInsights(null);
+    const raw = await callClaude(
+      `A new patient has just been registered. Analyse their profile and return intake insights.
+PATIENT: ${JSON.stringify({ name: p.name, age: p.age, gender: p.gender, dob: p.dob })}
+Return ONLY JSON:
+{
+  "monitoring_priorities": ["health areas to prioritise for this age/gender profile"],
+  "suggested_questions": ["important intake questions not yet captured"],
+  "intake_note": "one sentence on completeness and any flags"
+}`,
+      "You are a clinical intake assistant. Output only valid JSON."
+    );
+    const insights = parseJSON(raw);
+    if (insights) {
+      setLastInsights(insights);
+      setPatients(prev => prev.map(pt => pt.id === p.id ? { ...pt, registrationInsights: insights } : pt));
+    }
+    setInsightLoading(false);
   };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Patient Registration</h2>
-      <p className="text-slate-500 mb-5 text-sm">Phase 1 — Register a new patient and generate a structured payload.</p>
+      <p className="text-slate-500 mb-5 text-sm">Phase 1 — Register a patient. Claude analyses the profile and surfaces intake priorities.</p>
       <div className="grid md:grid-cols-2 gap-5">
+
+        {/* Form */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h3 className="font-semibold text-slate-800 mb-4">Demographics</h3>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-slate-500">Full Name *</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g., Priya Menon" />
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g., Priya Menon" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-slate-500">Age *</label>
-                <input type="number" value={form.age} onChange={e => setForm({ ...form, age: e.target.value })} className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                <input type="number" value={form.age} onChange={e => setForm({ ...form, age: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
               </div>
               <div>
                 <label className="text-xs text-slate-500">Gender</label>
-                <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm">
                   <option>Female</option><option>Male</option><option>Other</option>
                 </select>
               </div>
             </div>
             <div>
               <label className="text-xs text-slate-500">Phone</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
             <div>
               <label className="text-xs text-slate-500">Date of Birth</label>
-              <input type="date" value={form.dob} onChange={e => setForm({ ...form, dob: e.target.value })} className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+              <input type="date" value={form.dob} onChange={e => setForm({ ...form, dob: e.target.value })}
+                className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
-            <button onClick={save} className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg font-medium text-sm mt-2">Register Patient</button>
+            <button onClick={save} disabled={!form.name || !form.age}
+              className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm mt-2">
+              Register Patient
+            </button>
           </div>
         </div>
-        <div className="bg-slate-900 rounded-xl p-5 text-slate-100">
-          <h3 className="font-semibold text-teal-300 mb-3 flex items-center gap-2"><FileText className="w-4 h-4" /> Screen Payload (JSON)</h3>
-          {payload ? <pre className="text-xs overflow-auto max-h-96 font-mono">{JSON.stringify(payload, null, 2)}</pre> : <p className="text-sm text-slate-400">Register a patient to see the structured payload.</p>}
+
+        {/* AI Intake Insights — replaces the raw JSON payload panel */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+            <Brain className="w-4 h-4 text-teal-500" /> AI Intake Insights
+          </h3>
+          {insightLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
+              <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+              <span className="text-sm">Analysing patient profile…</span>
+            </div>
+          ) : lastInsights ? (
+            <div className="space-y-4 text-sm">
+              <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Monitoring Priorities</div>
+                <ul className="space-y-1.5">
+                  {lastInsights.monitoring_priorities?.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-slate-700">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 mt-0.5 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Suggested Questions</div>
+                <ul className="space-y-1.5">
+                  {lastInsights.suggested_questions?.map((q, i) => (
+                    <li key={i} className="flex items-start gap-2 text-slate-700">
+                      <span className="text-teal-500 font-bold mt-0.5 flex-shrink-0">?</span> {q}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {lastInsights.intake_note && (
+                <div className="p-3 bg-teal-50 rounded-lg border border-teal-100 text-xs text-teal-800">
+                  {lastInsights.intake_note}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Brain className="w-10 h-10 text-slate-200 mb-3" />
+              <p className="text-sm text-slate-400">Register a patient to see AI intake insights.</p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Registered Patients */}
       <div className="mt-5 bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-semibold text-slate-800 mb-3">Registered Patients ({patients.length})</h3>
         <div className="space-y-2">
@@ -317,33 +446,43 @@ function RegisterScreen({ patients, setPatients }) {
 }
 
 // ─── ASSISTANT: APPOINTMENTS ──────────────────────────────────
-function AppointmentScreen({ patients, setPatients }) {
+function AppointmentScreen({ patients, setPatients, toast }) {
   const [selectedId, setSelectedId] = useState(patients[0]?.id);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]       = useState(false);
   const [suggestions, setSuggestions] = useState(null);
   const patient = patients.find(p => p.id === selectedId);
+
   const suggestSlots = async () => {
     if (!patient) return;
     setLoading(true);
     const raw = await callClaude(
-      `Suggest 3 appointment time slots for the next 7 days starting April 22 2026. Patient: ${JSON.stringify({ name: patient.name, age: patient.age, history: patient.history, lastVisit: patient.pastVisits[0] })}. Return ONLY JSON: { "suggestions": [{ "date": "YYYY-MM-DD", "time": "HH:MM AM/PM", "doctor": "Dr. Name", "reasoning": "brief why" }], "gaps": [] }`,
+      `Suggest 3 appointment time slots for the next 7 days starting ${TODAY}.
+Patient: ${JSON.stringify({ name: patient.name, age: patient.age, history: patient.history, lastVisit: patient.pastVisits[0] })}.
+Return ONLY JSON: { "suggestions": [{ "date": "YYYY-MM-DD", "time": "HH:MM AM/PM", "doctor": "Dr. Name", "reasoning": "brief why" }], "gaps": [] }`,
       "You are a clinic scheduling assistant. Output only valid JSON."
     );
-    try { setSuggestions(JSON.parse(raw)); } catch { setSuggestions({ suggestions: [], gaps: ["Could not parse AI response"] }); }
+    const parsed = parseJSON(raw);
+    setSuggestions(parsed ?? { suggestions: [], gaps: ["Could not parse AI response"] });
     setLoading(false);
   };
-  const bookSlot = slot => setPatients(patients.map(p => p.id === selectedId ? { ...p, appointments: [...p.appointments, slot] } : p));
+
+  const bookSlot = slot => {
+    setPatients(patients.map(p => p.id === selectedId ? { ...p, appointments: [...p.appointments, slot] } : p));
+    toast(`Booked — ${slot.date} at ${slot.time}`);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Appointment Schedule</h2>
-      <p className="text-slate-500 mb-5 text-sm">Phase 1 — AI-suggested time slots based on patient context.</p>
+      <p className="text-slate-500 mb-5 text-sm">Phase 2 — AI-suggested time slots based on patient context.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="teal" />
       {patient && (
         <div className="grid md:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-slate-800">Book for {patient.name}</h3>
-              <button onClick={suggestSlots} disabled={loading} className="flex items-center gap-2 px-3 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm disabled:opacity-60">
+              <button onClick={suggestSlots} disabled={loading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm disabled:opacity-60">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Suggest Slots
               </button>
             </div>
@@ -363,7 +502,9 @@ function AppointmentScreen({ patients, setPatients }) {
                 ))}
                 {suggestions.gaps?.length > 0 && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="text-xs font-semibold text-amber-800 mb-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Gaps flagged</div>
+                    <div className="text-xs font-semibold text-amber-800 mb-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Gaps flagged
+                    </div>
                     <ul className="text-xs text-amber-700">{suggestions.gaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
                   </div>
                 )}
@@ -376,7 +517,10 @@ function AppointmentScreen({ patients, setPatients }) {
               ? patient.appointments.map((a, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg mb-2">
                     <Calendar className="w-4 h-4 text-teal-600" />
-                    <div><div className="text-sm font-medium text-slate-800">{a.date} · {a.time}</div><div className="text-xs text-slate-500">{a.doctor}</div></div>
+                    <div>
+                      <div className="text-sm font-medium text-slate-800">{a.date} · {a.time}</div>
+                      <div className="text-xs text-slate-500">{a.doctor}</div>
+                    </div>
                   </div>
                 ))
               : <p className="text-sm text-slate-500">No appointments booked.</p>}
@@ -388,14 +532,16 @@ function AppointmentScreen({ patients, setPatients }) {
 }
 
 // ─── ASSISTANT: CLAIMS ────────────────────────────────────────
-function ClaimsScreen({ patients, setPatients }) {
+function ClaimsScreen({ patients, setPatients, toast }) {
   const [selectedId, setSelectedId] = useState(patients[0]?.id);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]       = useState(false);
   const patient = patients.find(p => p.id === selectedId);
+
   const generateClaim = async () => {
     if (!patient) return;
     setLoading(true);
-    const prompt = `Generate a medical claim (ICD-10 + CPT) for this patient.
+    const raw = await callClaude(
+      `Generate a medical claim (ICD-10 + CPT) for this patient.
 PATIENT: ${JSON.stringify({ name: patient.name, age: patient.age, gender: patient.gender, history: patient.history })}
 CLINICAL NOTE: ${JSON.stringify(patient.capturedNote || "Not captured")}
 DIAGNOSTIC ORDERS: ${JSON.stringify(patient.diagnosticOrder || "None")}
@@ -404,28 +550,41 @@ PRIOR CLAIM PATTERNS: ${JSON.stringify(priorClaimsCorpus)}
 Return ONLY JSON:
 {
   "patient_id": "${patient.id}",
-  "date_of_service": "2026-04-22",
+  "date_of_service": "${TODAY}",
   "diagnosis_codes": [{ "code": "", "description": "", "reason": "" }],
   "procedure_codes": [{ "code": "", "description": "", "units": 1, "modifier": null, "reason": "" }],
   "gaps_detected": [],
   "denial_risk_notes": [],
   "similar_prior_cases": []
-}`;
-    const raw = await callClaude(prompt, "You are a medical coding assistant. Output only valid JSON.");
-    try {
-      const claim = JSON.parse(raw);
+}`,
+      "You are a medical coding assistant. Output only valid JSON."
+    );
+    const claim = parseJSON(raw);
+    if (claim) {
       setPatients(patients.map(p => p.id === selectedId ? { ...p, claim } : p));
-    } catch { alert("Could not parse claim. Please retry."); }
+      toast("Claim generated");
+    } else {
+      toast("Could not generate claim — please retry", "error");
+    }
     setLoading(false);
   };
+
   const removeCode = (type, idx) => {
     const claim = { ...patient.claim, [type]: patient.claim[type].filter((_, i) => i !== idx) };
     setPatients(patients.map(p => p.id === selectedId ? { ...p, claim } : p));
   };
+
+  const copyCodes = () => {
+    if (!patient?.claim) return;
+    const dx  = patient.claim.diagnosis_codes?.map(d => `${d.code}  ${d.description}`).join("\n") ?? "";
+    const cpt = patient.claim.procedure_codes?.map(c => `${c.code}  ${c.description} ×${c.units}`).join("\n") ?? "";
+    copyText(`DIAGNOSIS CODES (ICD-10)\n${dx}\n\nPROCEDURE CODES (CPT)\n${cpt}`, toast);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Claim Generation</h2>
-      <p className="text-slate-500 mb-5 text-sm">Phase 5 — AI-suggested ICD-10/CPT codes with gap detection and editable review.</p>
+      <p className="text-slate-500 mb-5 text-sm">Phase 6 — AI-suggested ICD-10/CPT codes with gap detection and editable review.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="teal" />
       {patient && (
         <>
@@ -441,29 +600,45 @@ Return ONLY JSON:
                   ))}
                 </div>
               </div>
-              <button onClick={generateClaim} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm disabled:opacity-60">
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {patient.claim ? "Regenerate" : "Generate Claim"}
-              </button>
+              <div className="flex items-center gap-2">
+                {patient.claim && (
+                  <button onClick={copyCodes}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm">
+                    <Copy className="w-3.5 h-3.5" /> Copy Codes
+                  </button>
+                )}
+                <button onClick={generateClaim} disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm disabled:opacity-60">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {patient.claim ? "Regenerate" : "Generate Claim"}
+                </button>
+              </div>
             </div>
           </div>
+
           {patient.claim && (
             <div className="grid lg:grid-cols-2 gap-5">
               <div className="space-y-5">
                 {[
-                  { key: "diagnosis_codes", label: "Diagnosis Codes (ICD-10)", icon: FileText, color: "indigo" },
-                  { key: "procedure_codes", label: "Procedure Codes (CPT)", icon: Receipt, color: "teal" }
+                  { key: "diagnosis_codes",  label: "Diagnosis Codes (ICD-10)", icon: FileText, color: "text-indigo-700" },
+                  { key: "procedure_codes",  label: "Procedure Codes (CPT)",    icon: Receipt,  color: "text-teal-700"   }
                 ].map(({ key, label, icon: Icon, color }) => (
                   <div key={key} className="bg-white rounded-xl border border-slate-200 p-5">
-                    <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2"><Icon className="w-4 h-4" /> {label}</h3>
+                    <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                      <Icon className="w-4 h-4" /> {label}
+                    </h3>
                     <div className="space-y-2">
                       {patient.claim[key]?.map((d, i) => (
                         <div key={i} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                           <div className="flex items-center justify-between mb-1">
-                            <span className={`font-mono text-sm font-bold text-${color}-700`}>{d.code}{d.modifier ? <span className="text-xs text-slate-500 ml-1">mod {d.modifier}</span> : ""}</span>
+                            <span className={`font-mono text-sm font-bold ${color}`}>
+                              {d.code}{d.modifier ? <span className="text-xs text-slate-500 ml-1">mod {d.modifier}</span> : ""}
+                            </span>
                             <div className="flex items-center gap-2">
                               {d.units && <span className="text-xs text-slate-500">×{d.units}</span>}
-                              <button onClick={() => removeCode(key, i)} className="text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => removeCode(key, i)} className="text-slate-400 hover:text-red-500">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                           <div className="text-sm text-slate-800">{d.description}</div>
@@ -493,10 +668,6 @@ Return ONLY JSON:
                     <ul className="text-sm text-indigo-800 space-y-1">{patient.claim.similar_prior_cases.map((c, i) => <li key={i}>• {c}</li>)}</ul>
                   </div>
                 )}
-                <div className="bg-slate-900 rounded-xl p-5">
-                  <h3 className="font-semibold text-teal-300 mb-2 text-sm">Full Claim Payload</h3>
-                  <pre className="text-xs text-slate-300 overflow-auto max-h-64 font-mono">{JSON.stringify(patient.claim, null, 2)}</pre>
-                </div>
               </div>
             </div>
           )}
@@ -507,65 +678,131 @@ Return ONLY JSON:
 }
 
 // ─── DOCTOR: PATIENT DETAILS ──────────────────────────────────
-function PatientDetailsScreen({ patients }) {
-  const [selectedId, setSelectedId] = useState(patients[0]?.id);
+function PatientDetailsScreen({ patients, setPatients, toast }) {
+  const [selectedId, setSelectedId]   = useState(patients[0]?.id);
+  const [briefLoading, setBriefLoading] = useState(false);
   const patient = patients.find(p => p.id === selectedId);
+
+  const generateBrief = async () => {
+    if (!patient) return;
+    setBriefLoading(true);
+    const raw = await callClaude(
+      `Write a concise pre-visit clinical brief for a doctor about to see this patient.
+PATIENT: ${JSON.stringify({ name: patient.name, age: patient.age, gender: patient.gender, history: patient.history, pastVisits: patient.pastVisits })}
+Return ONLY JSON: {
+  "summary": "2–3 sentence clinical brief",
+  "alerts": ["time-sensitive item or overdue screening — keep each under 10 words"]
+}`,
+      "You are a clinical assistant briefing a doctor before an encounter. Be concise. Output only valid JSON."
+    );
+    const brief = parseJSON(raw);
+    if (brief) {
+      setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, aiBrief: brief } : p));
+    } else {
+      toast("Could not generate brief — retry", "error");
+    }
+    setBriefLoading(false);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Patient Details</h2>
       <p className="text-slate-500 mb-5 text-sm">Full patient context — demographics, history, and visits.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
       {patient && (
-        <div className="grid md:grid-cols-3 gap-5">
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white text-xl font-bold">{patient.name[0]}</div>
-              <div><h3 className="font-semibold text-slate-800">{patient.name}</h3><div className="text-xs text-slate-500">{patient.id}</div></div>
+        <>
+          {/* AI Pre-Visit Brief */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-indigo-900 flex items-center gap-2 text-sm">
+                <Brain className="w-4 h-4" /> Pre-Visit AI Brief
+              </h3>
+              <button onClick={generateBrief} disabled={briefLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium disabled:opacity-60">
+                {briefLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {patient.aiBrief ? "Refresh" : "Generate Brief"}
+              </button>
             </div>
-            <div className="space-y-2 text-sm">
-              {[["Age", patient.age], ["Gender", patient.gender], ["DOB", patient.dob || "—"], ["Phone", patient.phone || "—"]].map(([k, v]) => (
-                <div key={k} className="flex justify-between"><span className="text-slate-500">{k}</span><span className="text-slate-800">{v}</span></div>
-              ))}
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="font-semibold text-slate-800 mb-3">Medical History</h3>
-            {patient.history.length > 0 ? <ul className="space-y-2">{patient.history.map((h, i) => <li key={i} className="text-sm p-2 bg-slate-50 rounded-lg">{h}</li>)}</ul> : <p className="text-sm text-slate-500">No known conditions.</p>}
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="font-semibold text-slate-800 mb-3">Past Visits</h3>
-            {patient.pastVisits.length > 0
-              ? patient.pastVisits.map((v, i) => (
-                  <div key={i} className="text-sm p-3 bg-slate-50 rounded-lg mb-2">
-                    <div className="font-medium text-slate-800">{v.date}</div>
-                    <div className="text-xs text-slate-600 mt-0.5">{v.reason}</div>
-                    <div className="text-xs text-indigo-600 mt-1">Dx: {v.diagnosis}</div>
+            {patient.aiBrief ? (
+              <div className="space-y-2">
+                <p className="text-sm text-indigo-900">{patient.aiBrief.summary}</p>
+                {patient.aiBrief.alerts?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {patient.aiBrief.alerts.map((a, i) => (
+                      <span key={i} className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+                        ⚠ {a}
+                      </span>
+                    ))}
                   </div>
-                ))
-              : <p className="text-sm text-slate-500">No past visits.</p>}
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-indigo-600">Click "Generate Brief" for an AI summary before the encounter.</p>
+            )}
           </div>
-        </div>
+
+          <div className="grid md:grid-cols-3 gap-5">
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                  {patient.name[0]}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800">{patient.name}</h3>
+                  <div className="text-xs text-slate-500">{patient.id}</div>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                {[["Age", patient.age], ["Gender", patient.gender], ["DOB", patient.dob || "—"], ["Phone", patient.phone || "—"]].map(([k, v]) => (
+                  <div key={k} className="flex justify-between">
+                    <span className="text-slate-500">{k}</span>
+                    <span className="text-slate-800">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="font-semibold text-slate-800 mb-3">Medical History</h3>
+              {patient.history.length > 0
+                ? <ul className="space-y-2">{patient.history.map((h, i) => <li key={i} className="text-sm p-2 bg-slate-50 rounded-lg">{h}</li>)}</ul>
+                : <p className="text-sm text-slate-500">No known conditions.</p>}
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="font-semibold text-slate-800 mb-3">Past Visits</h3>
+              {patient.pastVisits.length > 0
+                ? patient.pastVisits.map((v, i) => (
+                    <div key={i} className="text-sm p-3 bg-slate-50 rounded-lg mb-2">
+                      <div className="font-medium text-slate-800">{v.date}</div>
+                      <div className="text-xs text-slate-600 mt-0.5">{v.reason}</div>
+                      <div className="text-xs text-indigo-600 mt-1">Dx: {v.diagnosis}</div>
+                    </div>
+                  ))
+                : <p className="text-sm text-slate-500">No past visits.</p>}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
 // ─── DOCTOR: CAPTURE DETAILS ──────────────────────────────────
-function CaptureScreen({ patients, setPatients }) {
+function CaptureScreen({ patients, setPatients, toast }) {
   const [selectedId, setSelectedId] = useState(patients[0]?.id);
-  const [mode, setMode] = useState("conversation");
+  const [mode, setMode]             = useState("conversation");
   const [conversation, setConversation] = useState("");
   const [manual, setManual] = useState({ chief_complaint: "", history_of_present_illness: "", examination_findings: "", assessment: "", plan: "" });
-  const [ocrFiles, setOcrFiles] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [ocrFiles, setOcrFiles]     = useState([]);
+  const [loading, setLoading]       = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [listening, setListening] = useState(false);
+  const [listening, setListening]   = useState(false);
   const recognitionRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const fileInputRef   = useRef(null);
   const patient = patients.find(p => p.id === selectedId);
+
   const toggleVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert("Speech recognition not supported."); return; }
+    if (!SR) { toast("Speech recognition not supported", "error"); return; }
     if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
     const rec = new SR();
     rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
@@ -579,9 +816,10 @@ function CaptureScreen({ patients, setPatients }) {
       setConversation(final + interim);
     };
     rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
+    rec.onend   = () => setListening(false);
     rec.start(); recognitionRef.current = rec; setListening(true);
   };
+
   const extractFromConversation = async () => {
     if (!conversation) return;
     setLoading(true);
@@ -593,16 +831,22 @@ ${ocrCombined ? `OLD RECORDS (OCR):\n${ocrCombined}` : ""}
 Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "examination_findings": "", "assessment": "", "plan": "", "extracted_orders": { "medications": [], "procedures": [], "labs": [], "imaging": [] }, "patient_quotes": [], "gaps": [] }`,
       "You are a clinical scribe AI. Output only valid JSON."
     );
-    try {
-      const note = JSON.parse(raw);
+    const note = parseJSON(raw);
+    if (note) {
       setPatients(patients.map(p => p.id === selectedId ? { ...p, capturedNote: note } : p));
-    } catch { alert("Could not parse response, try again."); }
+      toast("SOAP note extracted");
+    } else {
+      toast("Could not extract note — please retry", "error");
+    }
     setLoading(false);
   };
+
   const saveManual = () => {
     const note = { ...manual, extracted_orders: { medications: [], procedures: [], labs: [], imaging: [] }, gaps: [], source: "manual" };
     setPatients(patients.map(p => p.id === selectedId ? { ...p, capturedNote: note } : p));
+    toast("Clinical note saved");
   };
+
   const handleFileUpload = async e => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
@@ -610,59 +854,101 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
     setOcrFiles(prev => [...prev, ...entries]);
     setOcrLoading(true);
     for (const entry of entries) {
-      const text = await callClaudeWithFile("Extract all text from this medical document. Preserve structure. Output plain text only.", entry.file, "You are an OCR assistant for medical documents.");
-      setOcrFiles(prev => prev.map(f => f.name === entry.name && f.status === "pending" ? { ...f, status: text ? "done" : "error", extractedText: text || "" } : f));
+      const text = await callClaudeWithFile(
+        "Extract all text from this medical document. Preserve structure. Output plain text only.",
+        entry.file, "You are an OCR assistant for medical documents."
+      );
+      setOcrFiles(prev => prev.map(f =>
+        f.name === entry.name && f.status === "pending"
+          ? { ...f, status: text ? "done" : "error", extractedText: text || "" }
+          : f
+      ));
     }
     setOcrLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const copyNote = () => {
+    if (!patient?.capturedNote) return;
+    const n = patient.capturedNote;
+    copyText([
+      `CHIEF COMPLAINT\n${n.chief_complaint || "—"}`,
+      `HISTORY OF PRESENT ILLNESS\n${n.history_of_present_illness || "—"}`,
+      `EXAMINATION\n${n.examination_findings || "—"}`,
+      `ASSESSMENT\n${n.assessment || "—"}`,
+      `PLAN\n${n.plan || "—"}`,
+    ].join("\n\n"), toast);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Capture Details</h2>
-      <p className="text-slate-500 mb-5 text-sm">Phase 2 — Record conversation, upload old records, or enter manually.</p>
+      <p className="text-slate-500 mb-5 text-sm">Phase 3 — Record conversation, upload old records, or enter manually.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
       {patient && (
         <div className="grid lg:grid-cols-2 gap-5">
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-slate-200 p-1 inline-flex">
               {[["conversation", "Conversation", Mic], ["manual", "Manual Entry", ClipboardList]].map(([m, label, Icon]) => (
-                <button key={m} onClick={() => setMode(m)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${mode === m ? "bg-indigo-500 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+                <button key={m} onClick={() => setMode(m)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${mode === m ? "bg-indigo-500 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
                   <Icon className="w-3.5 h-3.5" /> {label}
                 </button>
               ))}
             </div>
+
             {mode === "conversation" ? (
               <div className="bg-white rounded-xl border border-slate-200 p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-slate-800 flex items-center gap-2"><Mic className="w-4 h-4" /> Doctor-Patient Conversation</h3>
                   <div className="flex items-center gap-2">
                     {conversation && <button onClick={() => setConversation("")} className="text-xs text-slate-500 hover:text-slate-800">Clear</button>}
-                    <button onClick={toggleVoice} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${listening ? "bg-red-500 text-white animate-pulse" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
+                    <button onClick={toggleVoice}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${listening ? "bg-red-500 text-white animate-pulse" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
                       {listening ? <><Square className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Record</>}
                     </button>
                   </div>
                 </div>
-                {listening && <div className="flex items-center gap-2 mb-2 text-xs text-red-600"><div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div> Live transcription active</div>}
-                <textarea value={conversation} onChange={e => setConversation(e.target.value)} placeholder={"Doctor: What brings you in today?\nPatient: I've had chest pain for about 2 days...\nDoctor: Any radiation to the arm or jaw?\nPatient: No, just in the center..."} className="w-full h-48 p-3 border border-slate-200 rounded-lg text-sm font-mono" />
-                <div className="text-xs text-slate-500 mt-2">{conversation.trim().split(/\s+/).filter(Boolean).length} words</div>
+                {listening && (
+                  <div className="flex items-center gap-2 mb-2 text-xs text-red-600">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> Live transcription active
+                  </div>
+                )}
+                <textarea value={conversation} onChange={e => setConversation(e.target.value)}
+                  placeholder={"Doctor: What brings you in today?\nPatient: I've had chest pain for about 2 days...\nDoctor: Any radiation to the arm or jaw?\nPatient: No, just in the center..."}
+                  className="w-full h-48 p-3 border border-slate-200 rounded-lg text-sm font-mono" />
+                <div className="text-xs text-slate-500 mt-2">
+                  {conversation.trim().split(/\s+/).filter(Boolean).length} words
+                </div>
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2"><ClipboardList className="w-4 h-4" /> Manual Entry</h3>
-                {[["chief_complaint", "Chief Complaint", "Reason for visit"], ["history_of_present_illness", "History of Present Illness", "Onset, duration, severity"], ["examination_findings", "Examination Findings", "Vitals and physical exam"], ["assessment", "Assessment / Diagnosis", "Working diagnosis"], ["plan", "Plan", "Medications, tests, follow-up"]].map(([k, label, ph]) => (
+                {[
+                  ["chief_complaint",            "Chief Complaint",            "Reason for visit"],
+                  ["history_of_present_illness", "History of Present Illness", "Onset, duration, severity"],
+                  ["examination_findings",        "Examination Findings",       "Vitals and physical exam"],
+                  ["assessment",                  "Assessment / Diagnosis",     "Working diagnosis"],
+                  ["plan",                        "Plan",                       "Medications, tests, follow-up"]
+                ].map(([k, label, ph]) => (
                   <div key={k}>
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{label}</label>
-                    <textarea value={manual[k]} onChange={e => setManual({ ...manual, [k]: e.target.value })} placeholder={ph} className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm h-14" />
+                    <textarea value={manual[k]} onChange={e => setManual({ ...manual, [k]: e.target.value })}
+                      placeholder={ph} className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm h-14" />
                   </div>
                 ))}
-                <button onClick={saveManual} className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium">Save Manual Entry</button>
+                <button onClick={saveManual} className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium">
+                  Save Manual Entry
+                </button>
               </div>
             )}
+
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2"><FileUp className="w-4 h-4" /> Upload Old Reports (OCR)</h3>
                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple onChange={handleFileUpload} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} disabled={ocrLoading} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm disabled:opacity-60">
+                <button onClick={() => fileInputRef.current?.click()} disabled={ocrLoading}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm disabled:opacity-60">
                   <Upload className="w-3.5 h-3.5" /> Upload
                 </button>
               </div>
@@ -677,15 +963,18 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
                         </div>
                         <div className="flex items-center gap-2">
                           {f.status === "pending" && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
-                          {f.status === "done" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                          {f.status === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
-                          <button onClick={() => setOcrFiles(prev => prev.filter(x => x.name !== f.name))} className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                          {f.status === "done"    && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                          {f.status === "error"   && <AlertCircle  className="w-4 h-4 text-red-500" />}
+                          <button onClick={() => setOcrFiles(prev => prev.filter(x => x.name !== f.name))}
+                            className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                       {f.extractedText && (
                         <details className="mt-2">
                           <summary className="text-xs text-indigo-600 cursor-pointer">View extracted text</summary>
-                          <pre className="text-xs text-slate-600 mt-2 whitespace-pre-wrap font-mono bg-white p-2 rounded border border-slate-200 max-h-40 overflow-auto">{f.extractedText}</pre>
+                          <pre className="text-xs text-slate-600 mt-2 whitespace-pre-wrap font-mono bg-white p-2 rounded border border-slate-200 max-h-40 overflow-auto">
+                            {f.extractedText}
+                          </pre>
                         </details>
                       )}
                     </div>
@@ -698,39 +987,59 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
                 </div>
               )}
             </div>
+
             {mode === "conversation" && (
-              <button onClick={extractFromConversation} disabled={loading || !conversation} className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60">
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Extract Key Details with Claude
+              <button onClick={extractFromConversation} disabled={loading || !conversation}
+                className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Extract Key Details with Claude
               </button>
             )}
           </div>
+
           <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="font-semibold text-slate-800 mb-3">Structured Clinical Note</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-800">Structured Clinical Note</h3>
+              {patient.capturedNote && (
+                <button onClick={copyNote}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm">
+                  <Copy className="w-3.5 h-3.5" /> Copy Note
+                </button>
+              )}
+            </div>
             {patient.capturedNote ? (
               <div className="space-y-3 text-sm">
-                <Section label="Chief Complaint" value={patient.capturedNote.chief_complaint} />
+                <Section label="Chief Complaint"            value={patient.capturedNote.chief_complaint} />
                 <Section label="History of Present Illness" value={patient.capturedNote.history_of_present_illness} />
-                <Section label="Examination" value={patient.capturedNote.examination_findings} />
-                <Section label="Assessment" value={patient.capturedNote.assessment} />
-                <Section label="Plan" value={patient.capturedNote.plan} />
+                <Section label="Examination"                value={patient.capturedNote.examination_findings} />
+                <Section label="Assessment"                 value={patient.capturedNote.assessment} />
+                <Section label="Plan"                       value={patient.capturedNote.plan} />
                 {patient.capturedNote.patient_quotes?.length > 0 && (
                   <div className="p-3 bg-slate-50 rounded-lg border-l-4 border-slate-400">
                     <div className="text-xs font-semibold text-slate-600 mb-1">Notable Patient Quotes</div>
-                    <ul className="text-xs text-slate-700 space-y-1 italic">{patient.capturedNote.patient_quotes.map((q, i) => <li key={i}>"{q}"</li>)}</ul>
+                    <ul className="text-xs text-slate-700 space-y-1 italic">
+                      {patient.capturedNote.patient_quotes.map((q, i) => <li key={i}>"{q}"</li>)}
+                    </ul>
                   </div>
                 )}
                 {Object.values(patient.capturedNote.extracted_orders || {}).some(a => a?.length > 0) && (
                   <div className="p-3 bg-indigo-50 rounded-lg">
                     <div className="text-xs font-semibold text-indigo-900 mb-1">Extracted Orders</div>
                     <div className="text-xs text-indigo-700 space-y-0.5">
-                      {Object.entries(patient.capturedNote.extracted_orders).map(([k, v]) => v?.length > 0 && <div key={k}><span className="font-medium capitalize">{k}:</span> {v.join(", ")}</div>)}
+                      {Object.entries(patient.capturedNote.extracted_orders).map(([k, v]) =>
+                        v?.length > 0 && <div key={k}><span className="font-medium capitalize">{k}:</span> {v.join(", ")}</div>
+                      )}
                     </div>
                   </div>
                 )}
                 {patient.capturedNote.gaps?.length > 0 && (
                   <div className="p-3 bg-amber-50 rounded-lg">
-                    <div className="text-xs font-semibold text-amber-900 mb-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Gaps Flagged</div>
-                    <ul className="text-xs text-amber-800">{patient.capturedNote.gaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
+                    <div className="text-xs font-semibold text-amber-900 mb-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Gaps Flagged
+                    </div>
+                    <ul className="text-xs text-amber-800">
+                      {patient.capturedNote.gaps.map((g, i) => <li key={i}>• {g}</li>)}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -743,53 +1052,74 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
 }
 
 // ─── DOCTOR: DIAGNOSTIC ORDERS ────────────────────────────────
-function OrdersScreen({ patients, setPatients }) {
+function OrdersScreen({ patients, setPatients, toast }) {
   const [selectedId, setSelectedId] = useState(patients[0]?.id);
-  const [input, setInput] = useState("");
-  const [listening, setListening] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [input, setInput]           = useState("");
+  const [listening, setListening]   = useState(false);
+  const [loading, setLoading]       = useState(false);
   const recognitionRef = useRef(null);
   const patient = patients.find(p => p.id === selectedId);
+
   const toggleVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert("Speech recognition not supported."); return; }
+    if (!SR) { toast("Speech recognition not supported", "error"); return; }
     if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
     const rec = new SR();
     rec.continuous = true; rec.interimResults = true; rec.lang = "en-US";
-    rec.onresult = e => { let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript + " "; setInput(t); };
+    let final = input; // preserve existing text — same pattern as CaptureScreen
+    rec.onresult = e => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
+      }
+      setInput(final + interim);
+    };
     rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
+    rec.onend   = () => setListening(false);
     rec.start(); recognitionRef.current = rec; setListening(true);
   };
+
   const mapOrders = async () => {
     if (!input) return;
     setLoading(true);
     const raw = await callClaude(
-      `Map this order dictation to standard test names and LOINC codes. Patient: age ${patient.age}, ${patient.gender}, history: ${patient.history.join(", ")}. Dictation: "${input}". Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": "lab|imaging|other", "priority": "high|medium|low", "rationale": "" }], "gaps": [] }`,
+      `Map this order dictation to standard test names and LOINC codes.
+Patient: age ${patient.age}, ${patient.gender}, history: ${patient.history.join(", ")}.
+Dictation: "${input}".
+Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": "lab|imaging|other", "priority": "high|medium|low", "rationale": "" }], "gaps": [] }`,
       "You are a clinical order entry assistant. Output only valid JSON."
     );
-    try {
-      const order = JSON.parse(raw);
+    const order = parseJSON(raw);
+    if (order) {
       setPatients(patients.map(p => p.id === selectedId ? { ...p, diagnosticOrder: order } : p));
-    } catch { alert("Parse error."); }
+      toast("Orders mapped to LOINC codes");
+    } else {
+      toast("Could not map orders — retry", "error");
+    }
     setLoading(false);
   };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Diagnostic Order</h2>
-      <p className="text-slate-500 mb-5 text-sm">Phase 3 — Voice-dictated orders mapped to standard codes.</p>
+      <p className="text-slate-500 mb-5 text-sm">Phase 4 — Voice-dictated orders mapped to standard codes.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
       {patient && (
         <div className="grid lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-slate-800">Dictation</h3>
-              <button onClick={toggleVoice} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${listening ? "bg-red-500 text-white" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
+              <button onClick={toggleVoice}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${listening ? "bg-red-500 text-white" : "bg-indigo-500 text-white hover:bg-indigo-600"}`}>
                 {listening ? <><Square className="w-3.5 h-3.5" /> Stop</> : <><Mic className="w-3.5 h-3.5" /> Record</>}
               </button>
             </div>
-            <textarea value={input} onChange={e => setInput(e.target.value)} placeholder={`"Order a CBC, lipid profile, HbA1c, and a chest X-ray"`} className="w-full h-32 p-3 border border-slate-200 rounded-lg text-sm" />
-            <button onClick={mapOrders} disabled={loading || !input} className="w-full mt-3 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+            <textarea value={input} onChange={e => setInput(e.target.value)}
+              placeholder={`"Order a CBC, lipid profile, HbA1c, and a chest X-ray"`}
+              className="w-full h-32 p-3 border border-slate-200 rounded-lg text-sm" />
+            <button onClick={mapOrders} disabled={loading || !input}
+              className="w-full mt-3 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Map to Standard Codes
             </button>
           </div>
@@ -801,7 +1131,9 @@ function OrdersScreen({ patients, setPatients }) {
                   <div key={i} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-slate-800">{o.test_name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${o.priority === "high" ? "bg-red-100 text-red-700" : o.priority === "medium" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-700"}`}>{o.priority}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${o.priority === "high" ? "bg-red-100 text-red-700" : o.priority === "medium" ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-700"}`}>
+                        {o.priority}
+                      </span>
                     </div>
                     <div className="text-xs text-slate-500">LOINC: <span className="font-mono">{o.loinc_code}</span> · {o.category}</div>
                     <div className="text-xs text-slate-600 italic mt-1">{o.rationale}</div>
@@ -810,7 +1142,9 @@ function OrdersScreen({ patients, setPatients }) {
                 {patient.diagnosticOrder.gaps?.length > 0 && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div className="text-xs font-semibold text-amber-900 mb-1">Gaps</div>
-                    <ul className="text-xs text-amber-800">{patient.diagnosticOrder.gaps.map((g, i) => <li key={i}>• {g}</li>)}</ul>
+                    <ul className="text-xs text-amber-800">
+                      {patient.diagnosticOrder.gaps.map((g, i) => <li key={i}>• {g}</li>)}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -823,81 +1157,104 @@ function OrdersScreen({ patients, setPatients }) {
 }
 
 // ─── DOCTOR: DIAGNOSTIC RESULTS ───────────────────────────────
-function ResultsScreen({ patients, setPatients }) {
-  const [selectedId, setSelectedId] = useState(patients[0]?.id);
-  const [rawResults, setRawResults] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [historicalFiles, setHistoricalFiles] = useState([]);
+function ResultsScreen({ patients, setPatients, toast }) {
+  const [selectedId, setSelectedId]       = useState(patients[0]?.id);
+  const [rawResults, setRawResults]       = useState("");
+  const [loading, setLoading]             = useState(false);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const fileInputRef = useRef(null);
   const patient = patients.find(p => p.id === selectedId);
+
   const analyze = async () => {
     if (!rawResults) return;
     setLoading(true);
     const raw = await callClaude(
       `Analyze these lab/imaging results. Return ONLY JSON:
-{ "results": [{ "test": "", "value": "", "unit": "", "range": "", "range_low": 0, "range_high": 0, "numeric_value": 0, "status": "low|normal|high|critical", "read_aloud": "" }], "significant_findings": [], "follow_up_suggestions": [], "report_date": "YYYY-MM-DD" }
+{ "results": [{ "test": "", "value": "", "unit": "", "range": "", "range_low": 0, "range_high": 0, "numeric_value": 0, "status": "low|normal|high|critical", "read_aloud": "" }], "significant_findings": [], "follow_up_suggestions": [], "report_date": "${TODAY}" }
 RESULTS TEXT:\n${rawResults}`,
       "You are a clinical results analysis assistant. Output only valid JSON."
     );
-    try {
-      const results = JSON.parse(raw);
-      setPatients(patients.map(p => p.id === selectedId ? { ...p, diagnosticResults: results } : p));
-    } catch { alert("Parse error."); }
+    const results = parseJSON(raw);
+    if (results) {
+      setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, diagnosticResults: results } : p));
+      toast("Results analysed");
+    } else {
+      toast("Could not parse results — retry", "error");
+    }
     setLoading(false);
   };
+
+  // Historical reports stored in patient state — persists across patient switches
   const handleHistoricalUpload = async e => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    const entries = files.map(f => ({ file: f, name: f.name, status: "pending", results: [], date: null }));
-    setHistoricalFiles(prev => [...prev, ...entries]);
     setHistoricalLoading(true);
-    for (const entry of entries) {
+    for (const file of files) {
       const text = await callClaudeWithFile(
         `Extract lab values from this report. Return ONLY JSON: { "report_date": "YYYY-MM-DD", "results": [{ "test": "", "value": "", "unit": "", "range": "", "range_low": 0, "range_high": 0, "numeric_value": 0, "status": "low|normal|high|critical" }] }`,
-        entry.file, "You are an OCR + medical report parser. Output only valid JSON."
+        file, "You are an OCR + medical report parser. Output only valid JSON."
       );
-      try {
-        const parsed = JSON.parse(text);
-        setHistoricalFiles(prev => prev.map(f => f.name === entry.name && f.status === "pending" ? { ...f, status: "done", results: parsed.results || [], date: parsed.report_date } : f));
-      } catch {
-        setHistoricalFiles(prev => prev.map(f => f.name === entry.name && f.status === "pending" ? { ...f, status: "error" } : f));
-      }
+      const parsed = parseJSON(text);
+      const entry = parsed
+        ? { name: file.name, status: "done",  results: parsed.results || [], date: parsed.report_date }
+        : { name: file.name, status: "error", results: [],                    date: null };
+      setPatients(prev => prev.map(p =>
+        p.id === selectedId
+          ? { ...p, historicalReports: [...(p.historicalReports || []).filter(r => r.name !== file.name), entry] }
+          : p
+      ));
     }
     setHistoricalLoading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    toast("Historical reports processed");
   };
+
+  const removeHistorical = name =>
+    setPatients(prev => prev.map(p =>
+      p.id === selectedId ? { ...p, historicalReports: p.historicalReports.filter(r => r.name !== name) } : p
+    ));
+
   const buildTrendData = () => {
     const allReports = [
-      ...historicalFiles.filter(f => f.status === "done").map(f => ({ date: f.date || "Unknown", results: f.results })),
+      ...(patient?.historicalReports?.filter(f => f.status === "done") || []).map(f => ({ date: f.date || "Unknown", results: f.results })),
       ...(patient?.diagnosticResults?.results ? [{ date: patient.diagnosticResults.report_date || "Today", results: patient.diagnosticResults.results }] : [])
     ];
     const testNames = [...new Set(allReports.flatMap(r => r.results?.map(v => v.test).filter(Boolean) || []))];
-    const chartData = [...allReports].sort((a, b) => (a.date || "").localeCompare(b.date || "")).map(r => {
-      const row = { date: r.date };
-      r.results?.forEach(v => { if (v.numeric_value !== undefined) row[v.test] = v.numeric_value; });
-      return row;
-    });
+    const chartData = [...allReports]
+      .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+      .map(r => {
+        const row = { date: r.date };
+        r.results?.forEach(v => { if (v.numeric_value !== undefined) row[v.test] = v.numeric_value; });
+        return row;
+      });
     return { chartData, testNames };
   };
+
   const { chartData, testNames } = buildTrendData();
   const currentMetric = selectedMetric || testNames[0];
-  const metricRef = [...historicalFiles, { results: patient?.diagnosticResults?.results || [] }].flatMap(f => f.results || []).find(r => r.test === currentMetric);
-  const speak = text => { if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; window.speechSynthesis.speak(u); };
+  const metricRef = [...(patient?.historicalReports || []), { results: patient?.diagnosticResults?.results || [] }]
+    .flatMap(f => f.results || [])
+    .find(r => r.test === currentMetric);
+
+  const speak  = text => { if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 0.95; window.speechSynthesis.speak(u); };
   const readAll = () => { if (!patient?.diagnosticResults?.results) return; speak(patient.diagnosticResults.results.map(r => r.read_aloud).join(" ")); };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Diagnostic Results</h2>
-      <p className="text-slate-500 mb-5 text-sm">Phase 4 — Analyze results, upload historical reports, visualize trends.</p>
+      <p className="text-slate-500 mb-5 text-sm">Phase 5 — Analyze results, upload historical reports, visualize trends.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
       {patient && (
         <>
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <h3 className="font-semibold text-slate-800 mb-3">Paste Current Results</h3>
-              <textarea value={rawResults} onChange={e => setRawResults(e.target.value)} placeholder={"Hemoglobin: 11.2 g/dL (ref 13-17)\nFBS: 145 mg/dL (ref 70-100)\nTotal Cholesterol: 220 mg/dL (ref <200)"} className="w-full h-40 p-3 border border-slate-200 rounded-lg text-sm font-mono" />
-              <button onClick={analyze} disabled={loading || !rawResults} className="w-full mt-3 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              <textarea value={rawResults} onChange={e => setRawResults(e.target.value)}
+                placeholder={"Hemoglobin: 11.2 g/dL (ref 13-17)\nFBS: 145 mg/dL (ref 70-100)\nTotal Cholesterol: 220 mg/dL (ref <200)"}
+                className="w-full h-40 p-3 border border-slate-200 rounded-lg text-sm font-mono" />
+              <button onClick={analyze} disabled={loading || !rawResults}
+                className="w-full mt-3 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Analyze Results
               </button>
             </div>
@@ -905,24 +1262,30 @@ RESULTS TEXT:\n${rawResults}`,
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2"><FileUp className="w-4 h-4" /> Upload Old Lab Reports</h3>
                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple onChange={handleHistoricalUpload} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} disabled={historicalLoading} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm disabled:opacity-60">
+                <button onClick={() => fileInputRef.current?.click()} disabled={historicalLoading}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm disabled:opacity-60">
                   <Upload className="w-3.5 h-3.5" /> Upload
                 </button>
               </div>
               <p className="text-xs text-slate-500 mb-3">Claude will OCR and extract values for trend analysis.</p>
-              {historicalFiles.length > 0 ? (
+              {patient.historicalReports?.length > 0 ? (
                 <div className="space-y-2 max-h-40 overflow-auto">
-                  {historicalFiles.map(f => (
+                  {patient.historicalReports.map(f => (
                     <div key={f.name} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg text-sm">
                       <div className="flex items-center gap-2 min-w-0">
                         <ImageIcon className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                        <div className="min-w-0"><div className="truncate text-slate-800">{f.name}</div>{f.date && <div className="text-xs text-slate-500">{f.date} · {f.results.length} values</div>}</div>
+                        <div className="min-w-0">
+                          <div className="truncate text-slate-800">{f.name}</div>
+                          {f.date && <div className="text-xs text-slate-500">{f.date} · {f.results.length} values</div>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {f.status === "pending" && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
-                        {f.status === "done" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                        {f.status === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
-                        <button onClick={() => setHistoricalFiles(prev => prev.filter(x => x.name !== f.name))} className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                        {f.status === "pending" && <Loader2    className="w-4 h-4 animate-spin text-indigo-500" />}
+                        {f.status === "done"    && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                        {f.status === "error"   && <AlertCircle  className="w-4 h-4 text-red-500" />}
+                        <button onClick={() => removeHistorical(f.name)} className="text-slate-400 hover:text-red-500">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -935,11 +1298,13 @@ RESULTS TEXT:\n${rawResults}`,
               )}
             </div>
           </div>
+
           {chartData.length > 1 && testNames.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-slate-800 flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Trend Analysis</h3>
-                <select value={currentMetric} onChange={e => setSelectedMetric(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm">
+                <select value={currentMetric} onChange={e => setSelectedMetric(e.target.value)}
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm">
                   {testNames.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -950,7 +1315,7 @@ RESULTS TEXT:\n${rawResults}`,
                   <YAxis stroke="#64748b" style={{ fontSize: 12 }} />
                   <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }} />
                   <Legend />
-                  {metricRef?.range_low && <ReferenceLine y={metricRef.range_low} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: `Low ${metricRef.range_low}`, fontSize: 10, fill: "#f59e0b" }} />}
+                  {metricRef?.range_low  && <ReferenceLine y={metricRef.range_low}  stroke="#f59e0b" strokeDasharray="3 3" label={{ value: `Low ${metricRef.range_low}`,  fontSize: 10, fill: "#f59e0b" }} />}
                   {metricRef?.range_high && <ReferenceLine y={metricRef.range_high} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: `High ${metricRef.range_high}`, fontSize: 10, fill: "#f59e0b" }} />}
                   <Line type="monotone" dataKey={currentMetric} stroke="#6366f1" strokeWidth={2.5} dot={{ r: 5, fill: "#6366f1" }} activeDot={{ r: 7 }} connectNulls />
                 </LineChart>
@@ -958,6 +1323,7 @@ RESULTS TEXT:\n${rawResults}`,
               {metricRef?.range && <p className="text-xs text-slate-500 mt-2 text-center">Reference range: {metricRef.range} {metricRef.unit}</p>}
             </div>
           )}
+
           {patient.diagnosticResults?.results && (
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="flex items-center justify-between mb-3">
@@ -974,7 +1340,9 @@ RESULTS TEXT:\n${rawResults}`,
                         <div className="text-sm font-medium text-slate-800">{r.test}: <span className="font-mono">{r.value} {r.unit}</span></div>
                         <div className="text-xs text-slate-600">Normal: {r.range} · <span className="capitalize font-semibold">{r.status}</span></div>
                       </div>
-                      <button onClick={() => speak(r.read_aloud)} className="p-1.5 hover:bg-white rounded"><Volume2 className="w-4 h-4 text-slate-600" /></button>
+                      <button onClick={() => speak(r.read_aloud)} className="p-1.5 hover:bg-white rounded">
+                        <Volume2 className="w-4 h-4 text-slate-600" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -982,13 +1350,17 @@ RESULTS TEXT:\n${rawResults}`,
               {patient.diagnosticResults.significant_findings?.length > 0 && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <div className="text-xs font-semibold text-red-900 mb-1">Clinically Significant</div>
-                  <ul className="text-xs text-red-800 space-y-0.5">{patient.diagnosticResults.significant_findings.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+                  <ul className="text-xs text-red-800 space-y-0.5">
+                    {patient.diagnosticResults.significant_findings.map((f, i) => <li key={i}>• {f}</li>)}
+                  </ul>
                 </div>
               )}
               {patient.diagnosticResults.follow_up_suggestions?.length > 0 && (
                 <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
                   <div className="text-xs font-semibold text-indigo-900 mb-1">Follow-up Suggestions</div>
-                  <ul className="text-xs text-indigo-800 space-y-0.5">{patient.diagnosticResults.follow_up_suggestions.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+                  <ul className="text-xs text-indigo-800 space-y-0.5">
+                    {patient.diagnosticResults.follow_up_suggestions.map((f, i) => <li key={i}>• {f}</li>)}
+                  </ul>
                 </div>
               )}
             </div>
@@ -1001,33 +1373,46 @@ RESULTS TEXT:\n${rawResults}`,
 
 // ─── ROOT APP ─────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [patients, setPatients] = useState(initialPatients);
-  const [screen, setScreen] = useState("register");
+  const [screen, setScreen]   = useState("register");
+  const [toasts, setToasts]   = useState([]);
+
+  const toast = (msg, type = "success") => {
+    const id = Date.now();
+    setToasts(t => [...t, { id, msg, type }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000);
+  };
+
   const handleLogin = u => {
     setUser(u);
     setScreen(u.role === "doctor" ? "patients" : "register");
   };
+
   if (!user) return <LoginScreen onLogin={handleLogin} />;
+
+  const props = { patients, setPatients, toast };
   const screens = {
     doctor: {
-      patients: <PatientDetailsScreen patients={patients} />,
-      capture: <CaptureScreen patients={patients} setPatients={setPatients} />,
-      orders: <OrdersScreen patients={patients} setPatients={setPatients} />,
-      results: <ResultsScreen patients={patients} setPatients={setPatients} />
+      patients: <PatientDetailsScreen {...props} />,
+      capture:  <CaptureScreen        {...props} />,
+      orders:   <OrdersScreen         {...props} />,
+      results:  <ResultsScreen        {...props} />,
     },
     assistant: {
-      register: <RegisterScreen patients={patients} setPatients={setPatients} />,
-      appointments: <AppointmentScreen patients={patients} setPatients={setPatients} />,
-      claims: <ClaimsScreen patients={patients} setPatients={setPatients} />
-    }
+      register:     <RegisterScreen     {...props} />,
+      appointments: <AppointmentScreen  {...props} />,
+      claims:       <ClaimsScreen       {...props} />,
+    },
   };
+
   return (
     <div className="flex h-screen bg-slate-50">
       <Sidebar user={user} screen={screen} setScreen={setScreen} onLogout={() => setUser(null)} />
       <main className="flex-1 overflow-auto p-8">
-        {screens[user.role]?.[screen] || null}
+        {screens[user.role]?.[screen] ?? null}
       </main>
+      <Toast toasts={toasts} />
     </div>
   );
 }
