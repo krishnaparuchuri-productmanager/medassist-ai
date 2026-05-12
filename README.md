@@ -19,7 +19,7 @@ A full-stack React web application that uses Anthropic's Claude API to automate 
 
 ### 👩‍💼 Doctor Assistant Portal
 
-**Patient Registration** — Register patients and generate structured JSON payloads
+**Patient Registration** — Register patients; Claude generates AI Intake Insights (monitoring priorities, suggested questions, intake note)
 ![Patient Registration](docs/screenshots/02_assistant_patient_registration.png)
 
 **Appointment Schedule** — AI-suggested time slots based on patient context
@@ -46,19 +46,19 @@ A full-stack React web application that uses Anthropic's Claude API to automate 
 
 ## ✨ What It Does
 
-MedAssist AI covers **5 phases** of the clinical workflow across two role-based portals:
+MedAssist AI covers **6 phases** of the clinical workflow across two role-based portals:
 
 ### 👩‍💼 Doctor Assistant Portal
 | Screen | What Claude Does |
 |--------|-----------------|
-| **Patient Registration** | Registers patients and generates structured JSON payloads |
+| **Patient Registration** | Registers patients and generates AI Intake Insights — monitoring priorities, suggested questions, and an intake note |
 | **Appointment Scheduling** | Suggests time slots with AI rationale based on patient history |
 | **Claim Generation** | Auto-generates ICD-10 + CPT codes, flags denial risks, compares against prior cases |
 
 ### 🩺 Doctor Portal
 | Screen | What Claude Does |
 |--------|-----------------|
-| **Patient Details** | Displays full demographics, medical history, and past visits |
+| **Patient Details** | Displays full demographics, medical history, past visits, and generates a Pre-Visit AI Brief |
 | **Capture Details** | Transcribes doctor-patient conversations (live mic or text), extracts SOAP notes via Claude, OCRs uploaded medical reports |
 | **Diagnostic Orders** | Maps voice-dictated orders to LOINC codes with priority and rationale |
 | **Diagnostic Results** | Analyzes lab values, flags abnormals, reads results aloud, visualizes trends across historical uploads |
@@ -73,7 +73,8 @@ MedAssist AI covers **5 phases** of the clinical workflow across two role-based 
 | Styling | Tailwind CSS |
 | Charts | Recharts |
 | Icons | Lucide React |
-| AI | Anthropic Claude (`claude-sonnet-4-20250514`) |
+| AI | Anthropic Claude (`claude-sonnet-4-6`) |
+| API Proxy | Netlify Functions (server-side — key never reaches the browser) |
 | Voice | Web Speech API (built-in browser) |
 | OCR | Claude Vision (PDF + image) |
 
@@ -95,21 +96,31 @@ npm install
 
 ### Configuration
 
-Create a `.env.local` file in the root:
+All API calls go through a Netlify serverless function (`netlify/functions/claude.js`) — the API key **never reaches the browser**.
+
+For **local development**, create a `.env.local` file in the root:
 
 ```env
-VITE_ANTHROPIC_API_KEY=sk-ant-your-key-here
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
-> ⚠️ **Note:** This prototype calls the Anthropic API directly from the browser. In production, API calls should be proxied through a secure backend to protect your key.
+Then run with the Netlify CLI so the function is available locally:
 
-### Run
+```bash
+npx netlify dev
+```
+
+Or, if you just want to run the frontend without the Netlify function layer:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+> ⚠️ With `npm run dev` alone, Claude features won't work because `/.netlify/functions/claude` isn't served. Use `npx netlify dev` for full local functionality.
+
+For **Netlify deployment**, set `ANTHROPIC_API_KEY` in your Netlify site's **Environment Variables** (Site Settings → Environment Variables). Do **not** use the `VITE_` prefix — that would expose the key in the browser bundle.
+
+Open [http://localhost:8888](http://localhost:8888) when using `netlify dev`, or [http://localhost:5173](http://localhost:5173) for frontend-only.
 
 ---
 
@@ -123,6 +134,9 @@ medassist-ai/
 ├── tailwind.config.js
 ├── postcss.config.js
 ├── .gitignore
+├── netlify/
+│   └── functions/
+│       └── claude.js   # Secure server-side proxy — API key lives here only
 └── src/
     ├── main.jsx        # React entry point
     ├── index.css       # Tailwind base styles
@@ -146,9 +160,16 @@ medassist-ai/
 
 ## 🔒 Security Note
 
-This is a **prototype / demo application**. Patient data is held in React state only (no database). For any real clinical use:
-- Proxy all Claude API calls through a server-side endpoint
-- Implement proper authentication and HIPAA-compliant data handling
+This is a **prototype / demo application**. Patient data is held in React state only (no database).
+
+**What's already secured:**
+- All Claude API calls are proxied through `netlify/functions/claude.js` — the API key is a server-side environment variable and is never bundled into the browser JavaScript
+- The proxy whitelists allowed models and caps `max_tokens` to prevent cost abuse
+- CORS headers are enforced on the function
+
+**For any real clinical use, additionally:**
+- Implement proper authentication and session management
+- Use HIPAA-compliant infrastructure and data storage
 - Do not store real patient data in browser state
 
 ---
