@@ -83,7 +83,7 @@ MedAssist AI covers **5 phases** of the clinical workflow across two role-based 
 
 ### Prerequisites
 - Node.js 18+
-- An [Anthropic API key](https://console.anthropic.com/)
+- An [Anthropic API key])
 
 ### Installation
 
