@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Stethoscope, UserCog, LogOut, User, Calendar, FileText,
   ClipboardList, Mic, FlaskConical, Activity, Receipt,
@@ -63,7 +63,130 @@ const initialPatients = [
     appointments: [],
     capturedNote: null, diagnosticOrder: null, diagnosticResults: null, claim: null,
     historicalReports: [], registrationInsights: null, aiBrief: null,
-  }
+  },
+  // ── DEMO PATIENT — full workflow pre-seeded for screenshots & video ──
+  {
+    id: "P1003", name: "Priya Menon", age: 47, gender: "Female",
+    phone: "+91-98765-43210", dob: "1978-04-19",
+    history: ["Hypertension (2019)", "Pre-diabetes (2023)", "Hypothyroidism (2021)"],
+    pastVisits: [
+      { date: "2026-02-10", reason: "BP follow-up",    diagnosis: "Uncontrolled hypertension — medication adjusted" },
+      { date: "2025-11-18", reason: "Annual review",   diagnosis: "Pre-diabetes, HbA1c 6.4%" },
+      { date: "2025-07-04", reason: "Fatigue workup",  diagnosis: "Subclinical hypothyroidism noted" },
+    ],
+    appointments: [{ date: "2026-05-20", time: "09:30 AM", doctor: "Dr. Mehta" }],
+    capturedNote: {
+      chief_complaint: "Persistent fatigue and occasional headaches for 3 weeks",
+      history_of_present_illness: "47-year-old female with known hypertension and pre-diabetes presents with 3-week history of fatigue, mild frontal headaches, and increased thirst. Home BP averaging 148/92 mmHg. Last HbA1c 6.4% six months ago. No chest pain or dyspnoea. Compliant with amlodipine 5 mg OD.",
+      examination_findings: "BP 152/94 mmHg, HR 78 bpm, SpO2 98%, BMI 27.4. Mild periorbital puffiness. Thyroid mildly enlarged, non-tender. CVS: Normal S1 S2, no murmurs. Respiratory: Clear.",
+      assessment: "1. Uncontrolled hypertension — dose escalation required. 2. Pre-diabetes progressing — HbA1c trending upward. 3. Likely hypothyroidism exacerbation — fatigue, puffiness, and mild goitre.",
+      plan: "1. Increase amlodipine to 10 mg OD. 2. Add losartan 50 mg OD for BP and renal protection. 3. Order HbA1c, FBS, lipid profile, TSH, and renal function. 4. Dietary counselling referral. 5. Follow-up in 4 weeks.",
+      extracted_orders: {
+        medications: ["Amlodipine 10 mg OD", "Losartan 50 mg OD"],
+        procedures: [],
+        labs: ["HbA1c", "Fasting Blood Glucose", "Lipid profile", "TSH", "Renal function tests"],
+        imaging: [],
+      },
+      patient_quotes: [
+        "I feel tired all the time, even after a full night's sleep",
+        "My home BP readings have been quite high lately",
+      ],
+      gaps: ["Medication adherence history not documented", "Family history of diabetes not recorded"],
+    },
+    diagnosticOrder: {
+      orders: [
+        { test_name: "Glycated Haemoglobin (HbA1c)", loinc_code: "4548-4",   category: "lab",   priority: "high",   rationale: "Monitor pre-diabetes progression; last value 6.4% six months ago" },
+        { test_name: "Fasting Blood Glucose",          loinc_code: "1558-6",   category: "lab",   priority: "high",   rationale: "Baseline glucose for diabetes risk assessment" },
+        { test_name: "Lipid Panel",                    loinc_code: "57698-3",  category: "lab",   priority: "medium", rationale: "Cardiovascular risk assessment in hypertensive patient" },
+        { test_name: "Thyroid Stimulating Hormone",    loinc_code: "3016-3",   category: "lab",   priority: "high",   rationale: "Evaluate thyroid function — fatigue, puffiness, and mild goitre present" },
+        { test_name: "Renal Function Panel",           loinc_code: "24362-6",  category: "lab",   priority: "medium", rationale: "Baseline renal status before initiating ARB (losartan) therapy" },
+      ],
+      gaps: ["Consider echocardiogram given multi-year uncontrolled hypertension"],
+    },
+    diagnosticResults: {
+      results: [
+        { test: "HbA1c",               value: "6.8",  unit: "%",     range: "< 5.7",    range_low: 0,    range_high: 5.7,   numeric_value: 6.8,  status: "high",   read_aloud: "HbA1c is 6.8 percent, above normal, indicating progression toward diabetes." },
+        { test: "Fasting Blood Glucose",value: "118",  unit: "mg/dL", range: "70–100",   range_low: 70,   range_high: 100,   numeric_value: 118,  status: "high",   read_aloud: "Fasting blood glucose is 118 milligrams per decilitre, above normal, consistent with pre-diabetes." },
+        { test: "Total Cholesterol",    value: "214",  unit: "mg/dL", range: "< 200",    range_low: 0,    range_high: 200,   numeric_value: 214,  status: "high",   read_aloud: "Total cholesterol is 214, slightly above the desirable level." },
+        { test: "TSH",                  value: "6.2",  unit: "mIU/L", range: "0.4–4.0",  range_low: 0.4,  range_high: 4.0,   numeric_value: 6.2,  status: "high",   read_aloud: "TSH is 6.2, elevated, confirming hypothyroidism." },
+        { test: "Serum Creatinine",     value: "0.9",  unit: "mg/dL", range: "0.5–1.1",  range_low: 0.5,  range_high: 1.1,   numeric_value: 0.9,  status: "normal", read_aloud: "Serum creatinine is 0.9, within normal range." },
+      ],
+      significant_findings: [
+        "HbA1c 6.8% — pre-diabetes progressing, diabetes risk elevated",
+        "TSH 6.2 mIU/L — hypothyroidism confirmed, thyroid replacement indicated",
+        "Total cholesterol 214 mg/dL — statin therapy warranted given hypertension comorbidity",
+      ],
+      follow_up_suggestions: [
+        "Initiate levothyroxine for confirmed hypothyroidism",
+        "Consider statin therapy given cholesterol elevation and cardiovascular risk",
+        "Repeat HbA1c in 3 months to monitor pre-diabetes trajectory",
+        "Refer to endocrinology for combined diabetes and thyroid management",
+      ],
+      report_date: "2026-05-14",
+    },
+    claim: {
+      patient_id: "P1003",
+      date_of_service: "2026-05-14",
+      diagnosis_codes: [
+        { code: "I10",    description: "Essential (primary) hypertension",          reason: "Active — BP 152/94, medication adjustment today" },
+        { code: "R73.09", description: "Pre-diabetes (other abnormal glucose)",      reason: "HbA1c 6.8%, FBS 118 mg/dL — pre-diabetic range" },
+        { code: "E03.9",  description: "Hypothyroidism, unspecified",                reason: "TSH 6.2 with clinical symptoms — fatigue, goitre, puffiness" },
+      ],
+      procedure_codes: [
+        { code: "99214", description: "Office visit — moderate complexity (25 min)", units: 1, modifier: null, reason: "3 chronic conditions reviewed, multiple medication changes" },
+        { code: "83036", description: "HbA1c measurement",                           units: 1, modifier: null, reason: "Diabetes monitoring in pre-diabetic patient" },
+        { code: "80061", description: "Lipid panel",                                 units: 1, modifier: null, reason: "Cardiovascular risk screening" },
+        { code: "84443", description: "TSH assay",                                   units: 1, modifier: null, reason: "Thyroid evaluation for suspected hypothyroidism" },
+      ],
+      gaps_detected: [
+        "Echocardiogram not ordered despite prolonged uncontrolled hypertension",
+        "Medication adherence not documented — may affect medical necessity for dose escalation",
+      ],
+      denial_risk_notes: [
+        "Ensure BP reading is documented in note when billing 99214 for hypertension visit",
+        "HbA1c (83036) requires diabetes/pre-diabetes diagnosis — R73.09 covers this",
+      ],
+      similar_prior_cases: [
+        "HTN follow-up + lipid review — I10, E78.5, CPT 99213, 80061",
+        "Diabetes review with labs — E11.9, CPT 99214, 83036, 80053",
+      ],
+    },
+    historicalReports: [
+      {
+        name: "lab_report_nov2025.pdf",
+        status: "done",
+        date: "2025-11-18",
+        results: [
+          { test: "HbA1c",                value: "6.4", unit: "%",     range: "< 5.7",   range_low: 0,   range_high: 5.7,  numeric_value: 6.4, status: "high"   },
+          { test: "Fasting Blood Glucose", value: "108", unit: "mg/dL", range: "70–100",  range_low: 70,  range_high: 100, numeric_value: 108, status: "high"   },
+          { test: "Total Cholesterol",     value: "198", unit: "mg/dL", range: "< 200",   range_low: 0,   range_high: 200, numeric_value: 198, status: "normal" },
+          { test: "TSH",                   value: "4.8", unit: "mIU/L", range: "0.4–4.0", range_low: 0.4, range_high: 4.0, numeric_value: 4.8, status: "high"   },
+        ],
+      },
+    ],
+    registrationInsights: {
+      monitoring_priorities: [
+        "Blood pressure management — hypertension with suboptimal control",
+        "Glycaemic surveillance — pre-diabetes with upward HbA1c trend",
+        "Thyroid function monitoring — hypothyroidism risk given symptoms",
+      ],
+      suggested_questions: [
+        "Any family history of Type 2 diabetes or thyroid disorders?",
+        "Current medication compliance and any side effects?",
+        "Recent weight changes or dietary habits?",
+      ],
+      intake_note: "Profile complete — 3 active chronic conditions flagged; prioritise BP and metabolic workup at first encounter.",
+    },
+    aiBrief: {
+      summary: "Priya Menon, 47F, presents for follow-up of uncontrolled hypertension (BP 152/94) and progressing pre-diabetes (HbA1c 6.8%). New labs confirm hypothyroidism (TSH 6.2). Medication adjustment and thyroid treatment initiation expected today.",
+      alerts: [
+        "BP uncontrolled — escalate antihypertensive",
+        "HbA1c trending up — diabetes risk rising",
+        "TSH elevated — initiate levothyroxine",
+        "Cholesterol above target — consider statin",
+      ],
+    },
+  },
 ];
 
 const priorClaimsCorpus = [
@@ -297,6 +420,13 @@ function RegisterScreen({ patients, setPatients, toast }) {
   const [form, setForm] = useState({ name: "", age: "", gender: "Female", phone: "", dob: "" });
   const [insightLoading, setInsightLoading] = useState(false);
   const [lastInsights, setLastInsights] = useState(null);
+
+  // On mount: pre-fill the insights panel with the most recently registered
+  // patient that has insights — makes demo state visible immediately.
+  useEffect(() => {
+    const last = [...patients].reverse().find(p => p.registrationInsights);
+    if (last) setLastInsights(last.registrationInsights);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
     if (!form.name || !form.age) return;

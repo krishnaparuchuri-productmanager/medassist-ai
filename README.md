@@ -2,7 +2,73 @@
 
 > **Claude-powered clinical workflow platform** — built as a product prototype by [Krishna Chowdari Paruchuri](https://github.com/krishnaparuchuri-productmanager), Product Manager.
 
-## 🎬 Product Walkthrough
+## 🎬 Demo Walkthrough
+
+> All screenshots and video below use **synthetic demo data** (patient: Priya Menon, P1003 — fictional).
+> LLM status verified: `claude-sonnet-4-6` active and usable at time of recording.
+
+### 📹 Demo Video (~65 seconds)
+
+<video src="docs/demo-assets/demo.mp4" controls width="100%" style="border-radius:12px"></video>
+
+> Can't see the video? [Download demo.mp4](docs/demo-assets/demo.mp4)
+
+---
+
+### 📸 Screenshots
+
+#### Login
+![Login](docs/demo-assets/01-login.png)
+*Role selector — Doctor Assistant or Doctor portal*
+
+#### 👩‍💼 Doctor Assistant Portal
+
+**Patient Registration + AI Intake Insights**
+![Registration](docs/demo-assets/02-registration-ai-insights.png)
+*Claude analyses the patient profile and surfaces monitoring priorities, suggested intake questions, and a completeness note*
+
+**Appointment Scheduling**
+![Appointments](docs/demo-assets/03-appointment-scheduling.png)
+*AI-suggested time slots with clinical reasoning based on patient history*
+
+**Claim Generation**
+![Claims](docs/demo-assets/04-claim-generation.png)
+*Auto-generated ICD-10 + CPT codes with gap detection and denial risk analysis*
+
+#### 🩺 Doctor Portal
+
+**Patient Details**
+![Patient Details](docs/demo-assets/05-patient-details.png)
+*Full demographics, medical history, and past visits*
+
+**Pre-Visit AI Brief**
+![AI Brief](docs/demo-assets/06-pre-visit-brief.png)
+*Claude generates a concise pre-encounter summary with time-sensitive alerts*
+
+**Capture Details — SOAP Note**
+![Capture](docs/demo-assets/07-capture-soap-note.png)
+*Structured SOAP note extracted from a doctor-patient conversation, with extracted orders and gap flags*
+
+**Diagnostic Orders — LOINC Mapping**
+![Orders](docs/demo-assets/08-diagnostic-orders.png)
+*Voice-dictated orders mapped to standard LOINC codes with priority and rationale*
+
+**Diagnostic Results — Lab Analysis**
+![Results](docs/demo-assets/09-diagnostic-results.png)
+*Lab values analysed, abnormals flagged, read-aloud summaries generated*
+
+**Diagnostic Results — Trend Chart**
+![Trends](docs/demo-assets/10-trend-chart.png)
+*Lab values visualised across historical uploads with reference range overlays*
+
+---
+
+> 📋 Full code review, AI agent opportunities, and demo data details:
+> [`docs/demo-assets/ai-agent-review.md`](docs/demo-assets/ai-agent-review.md)
+
+---
+
+## 🎬 Original Product Walkthrough
 
 <video src="docs/walkthrough.mp4" controls width="100%" style="border-radius:12px"></video>
 
