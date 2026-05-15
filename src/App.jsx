@@ -618,7 +618,7 @@ Return ONLY JSON:
 
 // ─── ASSISTANT: APPOINTMENTS ──────────────────────────────────
 function AppointmentScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(patients[0]?.id);
+  const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading]       = useState(false);
   const [suggestions, setSuggestions] = useState(null);
   const patient = patients.find(p => p.id === selectedId);
@@ -646,7 +646,14 @@ Return ONLY JSON: { "suggestions": [{ "date": "YYYY-MM-DD", "time": "HH:MM AM/PM
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Appointment Schedule</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 2 — AI-suggested time slots based on patient context.</p>
-      <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="teal" />
+      <PatientSelector patients={patients} selectedId={selectedId} onSelect={id => { setSelectedId(id); setSuggestions(null); }} accent="teal" />
+      {!patient && (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
+          <Calendar className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-sm font-medium text-slate-500">Select a patient to view appointments</p>
+          <p className="text-xs text-slate-400 mt-1">Choose a patient above to see existing bookings and get AI slot suggestions.</p>
+        </div>
+      )}
       {patient && (
         <div className="grid md:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -704,7 +711,7 @@ Return ONLY JSON: { "suggestions": [{ "date": "YYYY-MM-DD", "time": "HH:MM AM/PM
 
 // ─── ASSISTANT: CLAIMS ────────────────────────────────────────
 function ClaimsScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(patients[0]?.id);
+  const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading]       = useState(false);
   const patient = patients.find(p => p.id === selectedId);
 
@@ -757,6 +764,13 @@ Return ONLY JSON:
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Claim Generation</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 6 — AI-suggested ICD-10/CPT codes with gap detection and editable review.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="teal" />
+      {!patient && (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
+          <Receipt className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-sm font-medium text-slate-500">Select a patient to generate a claim</p>
+          <p className="text-xs text-slate-400 mt-1">Choose a patient above to review their case summary and generate ICD-10 / CPT codes.</p>
+        </div>
+      )}
       {patient && (
         <>
           <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
