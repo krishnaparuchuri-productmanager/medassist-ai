@@ -1,0 +1,4 @@
+# Cloudflare Pages — SPA catch-all redirect
+# Ensures all frontend routes resolve to index.html (React handles routing client-side)
+# /api/* is excluded automatically because Pages Functions take priority over redirects
+/*    /index.html    200

@@ -198,7 +198,7 @@ const priorClaimsCorpus = [
 // ─── CLAUDE API ───────────────────────────────────────────────
 async function callClaude(prompt, systemPrompt = "") {
   try {
-    const res = await fetch("/.netlify/functions/claude", {
+    const res = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -228,7 +228,7 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
         : { type: "image",    source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
       { type: "text", text: prompt }
     ];
-    const res = await fetch("/.netlify/functions/claude", {
+    const res = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

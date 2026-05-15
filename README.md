@@ -140,7 +140,8 @@ MedAssist AI covers **6 phases** of the clinical workflow across two role-based 
 | Charts | Recharts |
 | Icons | Lucide React |
 | AI | Anthropic Claude (`claude-sonnet-4-6`) |
-| API Proxy | Netlify Functions (server-side — key never reaches the browser) |
+| API Proxy | Cloudflare Pages Function (server-side — key never reaches the browser) |
+| Hosting | Cloudflare Pages |
 | Voice | Web Speech API (built-in browser) |
 | OCR | Claude Vision (PDF + image) |
 
@@ -150,7 +151,7 @@ MedAssist AI covers **6 phases** of the clinical workflow across two role-based 
 
 ### Prerequisites
 - Node.js 18+
-- An [Anthropic API key])
+- An [Anthropic API key](https://console.anthropic.com/)
 
 ### Installation
 
@@ -160,33 +161,76 @@ cd medassist-ai
 npm install
 ```
 
-### Configuration
+### Local Development
 
-All API calls go through a Netlify serverless function (`netlify/functions/claude.js`) — the API key **never reaches the browser**.
+All Claude API calls go through a Cloudflare Pages Function (`functions/api/claude.js`) — the API key **never reaches the browser**.
 
-For **local development**, create a `.env.local` file in the root:
+Create a `.dev.vars` file in the project root (read by Wrangler locally, gitignored):
 
-```env
+```
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 ```
 
-Then run with the Netlify CLI so the function is available locally:
+Then start the full local dev stack (Vite frontend + Pages Function):
 
 ```bash
-npx netlify dev
+npm run pages:dev
 ```
 
-Or, if you just want to run the frontend without the Netlify function layer:
+Open [http://localhost:8788](http://localhost:8788) — Wrangler serves both the Vite frontend and the `/api/claude` function.
 
-```bash
-npm run dev
-```
+> `npm run dev` alone (Vite only) starts the frontend on port 5173 but Claude features won't work — the `/api/claude` function isn't served without Wrangler.
 
-> ⚠️ With `npm run dev` alone, Claude features won't work because `/.netlify/functions/claude` isn't served. Use `npx netlify dev` for full local functionality.
+### 🔑 How API Keys Stay Off the Client
 
-For **Netlify deployment**, set `ANTHROPIC_API_KEY` in your Netlify site's **Environment Variables** (Site Settings → Environment Variables). Do **not** use the `VITE_` prefix — that would expose the key in the browser bundle.
+- The Anthropic key is set as an environment variable in Cloudflare Pages (never in code)
+- Vite's `VITE_*` prefix convention is deliberately avoided — only `VITE_*` vars are bundled into the browser build
+- All AI calls are routed through `functions/api/claude.js` which runs server-side on Cloudflare's edge
+- The function enforces a model whitelist and caps `max_tokens` to prevent cost abuse
 
-Open [http://localhost:8888](http://localhost:8888) when using `netlify dev`, or [http://localhost:5173](http://localhost:5173) for frontend-only.
+---
+
+## ☁️ Deploying to Cloudflare Pages
+
+### 1. Connect your repository
+- Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Pages → Create a project
+- Connect your GitHub account and select this repository
+
+### 2. Build settings
+| Setting | Value |
+|---------|-------|
+| Framework preset | None (or Vite) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Functions directory | `functions` *(auto-detected)* |
+
+### 3. Environment variables
+In Cloudflare Pages → Settings → Environment Variables, add:
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `ANTHROPIC_API_KEY` | `sk-ant-...` | **Required** — server-side only, never exposed to browser |
+| `ALLOWED_ORIGIN` | `https://medassist.yourdomain.com` | *Optional* — restricts CORS to your domain. Defaults to `*` if not set. |
+
+### 4. Deploy
+Push to `main` — Cloudflare Pages auto-deploys on every push.
+
+---
+
+## 🌐 Subdomain Setup (Portfolio Domain)
+
+To serve this POC at `medassist.<your-portfolio-domain>`:
+
+1. In Cloudflare Pages → your project → **Custom domains** → Add custom domain
+2. Enter `medassist.yourdomain.com`
+3. Cloudflare auto-creates the DNS CNAME record if your domain is on Cloudflare DNS
+4. If your domain is external, add a CNAME manually:
+   ```
+   medassist  CNAME  <your-project>.pages.dev
+   ```
+5. Set `ALLOWED_ORIGIN=https://medassist.yourdomain.com` in environment variables
+
+Future POCs follow the same pattern: `projectname.yourdomain.com` → separate Cloudflare Pages project.
 
 ---
 
@@ -200,13 +244,15 @@ medassist-ai/
 ├── tailwind.config.js
 ├── postcss.config.js
 ├── .gitignore
-├── netlify/
-│   └── functions/
-│       └── claude.js   # Secure server-side proxy — API key lives here only
+├── public/
+│   └── _redirects          # SPA catch-all — Cloudflare Pages serves index.html for all routes
+├── functions/
+│   └── api/
+│       └── claude.js        # Cloudflare Pages Function — API key lives here only
 └── src/
-    ├── main.jsx        # React entry point
-    ├── index.css       # Tailwind base styles
-    └── App.jsx         # All screens, components, and Claude API logic
+    ├── main.jsx             # React entry point
+    ├── index.css            # Tailwind base styles
+    └── App.jsx              # All screens, components, and Claude API logic
 ```
 
 ---
@@ -229,7 +275,7 @@ medassist-ai/
 This is a **prototype / demo application**. Patient data is held in React state only (no database).
 
 **What's already secured:**
-- All Claude API calls are proxied through `netlify/functions/claude.js` — the API key is a server-side environment variable and is never bundled into the browser JavaScript
+- All Claude API calls are proxied through `functions/api/claude.js` (Cloudflare Pages Function) — the API key is a server-side environment variable and is never bundled into the browser JavaScript
 - The proxy whitelists allowed models and caps `max_tokens` to prevent cost abuse
 - CORS headers are enforced on the function
 
