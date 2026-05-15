@@ -328,15 +328,15 @@ function LoginScreen({ onLogin }) {
 }
 
 // ─── SIDEBAR ──────────────────────────────────────────────────
-function Sidebar({ user, screen, setScreen, onLogout }) {
+function Sidebar({ user, screen, setScreen, onLogout, doctorPatientName }) {
   const isDoc = user.role === "doctor";
   const ac = isDoc ? "indigo" : "teal";
   const items = isDoc
     ? [
-        { id: "patients",     label: "Patient Details",    icon: User },
-        { id: "capture",      label: "Capture Details",    icon: Mic },
-        { id: "orders",       label: "Diagnostic Order",   icon: FlaskConical },
-        { id: "results",      label: "Diagnostic Results", icon: Activity }
+        { id: "patients", label: "Patient Details",    icon: User,         level: 0 },
+        { id: "capture",  label: "Capture Details",    icon: Mic,          level: 1 },
+        { id: "orders",   label: "Diagnostic Order",   icon: FlaskConical, level: 1 },
+        { id: "results",  label: "Diagnostic Results", icon: Activity,     level: 1 },
       ]
     : [
         { id: "register",     label: "Patient Registration", icon: ClipboardList },
@@ -357,17 +357,29 @@ function Sidebar({ user, screen, setScreen, onLogout }) {
         </div>
       </div>
       <nav className="flex-1 p-3 space-y-1">
-        {items.map(({ id, label, icon: Icon }) => {
+        {items.map(({ id, label, icon: Icon, level = 0 }) => {
           const active = screen === id;
+          const isSubItem = level === 1;
           return (
             <button key={id} onClick={() => setScreen(id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all border-l-2 ${active ? AC[ac].active : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border-transparent"}`}>
-              <Icon className={`w-4 h-4 ${active ? AC[ac].icon : ""}`} />
+              className={`w-full flex items-center gap-3 px-3 rounded-lg text-sm transition-all border-l-2
+                ${isSubItem ? "ml-4 py-2" : "py-2.5"}
+                ${active
+                  ? AC[ac].active
+                  : `text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border-transparent${isSubItem && !doctorPatientName ? " opacity-50" : ""}`
+                }`}>
+              <Icon className={`flex-shrink-0 ${isSubItem ? "w-3.5 h-3.5" : "w-4 h-4"} ${active ? AC[ac].icon : ""}`} />
               <span className="flex-1 text-left">{label}</span>
-              {active && <ChevronRight className="w-4 h-4" />}
+              {active && <ChevronRight className="w-4 h-4 flex-shrink-0" />}
             </button>
           );
         })}
+        {isDoc && doctorPatientName && (
+          <div className="mt-2 mx-1 px-3 py-2 bg-slate-800 rounded-lg border border-slate-700">
+            <div className="text-xs text-slate-500 mb-0.5">Active Patient</div>
+            <div className="text-xs text-indigo-300 font-medium truncate">{doctorPatientName}</div>
+          </div>
+        )}
       </nav>
       <div className="p-3 border-t border-slate-800">
         <div className="px-3 py-1 text-xs text-slate-500">Signed in as</div>
@@ -402,6 +414,38 @@ function PatientSelector({ patients, selectedId, onSelect, accent = "teal" }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── PATIENT CONTEXT BAR (Doctor workflow) ────────────────────
+function PatientContextBar({ patient, onChangePatient }) {
+  if (!patient) return (
+    <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5">
+      <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-amber-800">No patient selected</p>
+        <p className="text-xs text-amber-600 mt-0.5">Go to Patient Details first to select a patient.</p>
+      </div>
+      <button onClick={onChangePatient}
+        className="text-xs text-amber-700 font-medium border border-amber-300 bg-white hover:bg-amber-50 rounded-md px-3 py-1.5 transition-colors">
+        Select Patient →
+      </button>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl mb-5">
+      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+        {patient.name[0]}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-indigo-900 truncate">{patient.name}</div>
+        <div className="text-xs text-indigo-600">{patient.id} · {patient.age}y · {patient.gender}</div>
+      </div>
+      <button onClick={onChangePatient}
+        className="text-xs text-indigo-600 hover:text-indigo-900 border border-indigo-200 hover:border-indigo-400 bg-white rounded-md px-2.5 py-1 transition-colors flex-shrink-0">
+        Change Patient
+      </button>
     </div>
   );
 }
@@ -710,8 +754,8 @@ Return ONLY JSON: { "suggestions": [{ "date": "YYYY-MM-DD", "time": "HH:MM AM/PM
 }
 
 // ─── ASSISTANT: CLAIMS ────────────────────────────────────────
-function ClaimsScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(null);
+function ClaimsScreen({ patients, setPatients, toast, doctorPatientId }) {
+  const [selectedId, setSelectedId] = useState(doctorPatientId ?? null);
   const [loading, setLoading]       = useState(false);
   const patient = patients.find(p => p.id === selectedId);
 
@@ -863,10 +907,15 @@ Return ONLY JSON:
 }
 
 // ─── DOCTOR: PATIENT DETAILS ──────────────────────────────────
-function PatientDetailsScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId]   = useState(null);
-  const [briefLoading, setBriefLoading] = useState(false);
-  const patient = patients.find(p => p.id === selectedId);
+function PatientDetailsScreen({ patients, setPatients, toast, doctorPatientId, setDoctorPatientId, setScreen }) {
+  const [briefLoading, setBriefLoading]     = useState(false);
+  const [showCloseVisit, setShowCloseVisit] = useState(false);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpSuggestion, setFollowUpSuggestion] = useState(null);
+  const [followUpDate, setFollowUpDate]     = useState("");
+  const [followUpTime, setFollowUpTime]     = useState("");
+  const [followUpDoctor, setFollowUpDoctor] = useState("");
+  const patient = patients.find(p => p.id === doctorPatientId);
 
   const generateBrief = async () => {
     if (!patient) return;
@@ -882,18 +931,52 @@ Return ONLY JSON: {
     );
     const brief = parseJSON(raw);
     if (brief) {
-      setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, aiBrief: brief } : p));
+      setPatients(prev => prev.map(p => p.id === doctorPatientId ? { ...p, aiBrief: brief } : p));
     } else {
       toast("Could not generate brief — retry", "error");
     }
     setBriefLoading(false);
   };
 
+  const loadFollowUpSuggestion = async () => {
+    if (!patient || followUpLoading) return;
+    setFollowUpLoading(true);
+    const raw = await callClaude(
+      `Suggest a follow-up appointment for this patient based on their history and recent consultation.
+PATIENT: ${JSON.stringify({ name: patient.name, age: patient.age, gender: patient.gender, history: patient.history })}
+RECENT NOTE: ${JSON.stringify(patient.capturedNote || "Not captured")}
+Today: ${TODAY}
+Return ONLY JSON: { "suggested_date": "YYYY-MM-DD", "suggested_time": "HH:MM AM/PM", "doctor": "Dr. Name", "reason": "1 sentence clinical reason for this follow-up timing" }`,
+      "You are a clinical scheduling assistant. Output only valid JSON."
+    );
+    const suggestion = parseJSON(raw);
+    if (suggestion) {
+      setFollowUpSuggestion(suggestion);
+      if (!followUpDate)   setFollowUpDate(suggestion.suggested_date || "");
+      if (!followUpTime)   setFollowUpTime(suggestion.suggested_time || "");
+      if (!followUpDoctor) setFollowUpDoctor(suggestion.doctor || "");
+    }
+    setFollowUpLoading(false);
+  };
+
+  const confirmCloseVisit = () => {
+    const followUp = followUpDate
+      ? { date: followUpDate, time: followUpTime || "TBD", doctor: followUpDoctor || "TBD", type: "Follow-up" }
+      : null;
+    setPatients(prev => prev.map(p => p.id === doctorPatientId
+      ? { ...p, closedVisit: TODAY, appointments: followUp ? [...p.appointments, followUp] : p.appointments }
+      : p
+    ));
+    setShowCloseVisit(false);
+    toast("Visit closed — navigating to Claim Generation");
+    setTimeout(() => setScreen("claims"), 600);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Patient Details</h2>
-      <p className="text-slate-500 mb-5 text-sm">Full patient context — demographics, history, and visits.</p>
-      <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
+      <p className="text-slate-500 mb-5 text-sm">Select a patient to begin — context persists across Capture, Orders, and Results.</p>
+      <PatientSelector patients={patients} selectedId={doctorPatientId} onSelect={id => { setDoctorPatientId(id); setShowCloseVisit(false); setFollowUpSuggestion(null); setFollowUpDate(""); setFollowUpTime(""); setFollowUpDoctor(""); }} accent="indigo" />
       {!patient && (
         <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
           <User className="w-10 h-10 text-slate-200 mb-3" />
@@ -972,6 +1055,83 @@ Return ONLY JSON: {
                 : <p className="text-sm text-slate-500">No past visits.</p>}
             </div>
           </div>
+
+          {/* Close Visit */}
+          <div className="mt-5 bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-indigo-500" /> Close Visit
+              </h3>
+              {!patient.closedVisit && !showCloseVisit && (
+                <button onClick={() => { setShowCloseVisit(true); loadFollowUpSuggestion(); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm">
+                  <CheckCircle2 className="w-4 h-4" /> Close Visit
+                </button>
+              )}
+            </div>
+
+            {patient.closedVisit && (
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-sm text-slate-500">Visit closed on <strong>{patient.closedVisit}</strong>.</p>
+                <button onClick={() => setScreen("claims")}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 underline">
+                  View Claim →
+                </button>
+              </div>
+            )}
+
+            {showCloseVisit && !patient.closedVisit && (
+              <div className="mt-4 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Closing today's visit for <strong>{patient.name}</strong>. Optionally schedule a follow-up below.
+                </p>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-indigo-500" /> Follow-up Appointment
+                    </h4>
+                    <button onClick={loadFollowUpSuggestion} disabled={followUpLoading}
+                      className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-md px-2.5 py-1 transition-colors disabled:opacity-60">
+                      {followUpLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      AI Suggest
+                    </button>
+                  </div>
+                  {followUpSuggestion?.reason && (
+                    <p className="text-xs text-indigo-600 bg-indigo-50 rounded p-2 mb-3 italic">
+                      ✦ {followUpSuggestion.reason}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-500">Date</label>
+                      <input type="date" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Time</label>
+                      <input value={followUpTime} onChange={e => setFollowUpTime(e.target.value)}
+                        placeholder="09:30 AM" className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500">Doctor</label>
+                      <input value={followUpDoctor} onChange={e => setFollowUpDoctor(e.target.value)}
+                        placeholder="Dr. Name" className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowCloseVisit(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm">
+                    Cancel
+                  </button>
+                  <button onClick={confirmCloseVisit}
+                    className="flex-1 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> Confirm & Close — Generate Claim
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
@@ -979,8 +1139,7 @@ Return ONLY JSON: {
 }
 
 // ─── DOCTOR: CAPTURE DETAILS ──────────────────────────────────
-function CaptureScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(null);
+function CaptureScreen({ patients, setPatients, toast, doctorPatientId, setDoctorPatientId, setScreen }) {
   const [mode, setMode]             = useState("conversation");
   const [conversation, setConversation] = useState("");
   const [manual, setManual] = useState({ chief_complaint: "", history_of_present_illness: "", examination_findings: "", assessment: "", plan: "" });
@@ -990,7 +1149,7 @@ function CaptureScreen({ patients, setPatients, toast }) {
   const [listening, setListening]   = useState(false);
   const recognitionRef = useRef(null);
   const fileInputRef   = useRef(null);
-  const patient = patients.find(p => p.id === selectedId);
+  const patient = patients.find(p => p.id === doctorPatientId);
 
   const toggleVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1025,7 +1184,7 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
     );
     const note = parseJSON(raw);
     if (note) {
-      setPatients(patients.map(p => p.id === selectedId ? { ...p, capturedNote: note } : p));
+      setPatients(patients.map(p => p.id === doctorPatientId ? { ...p, capturedNote: note } : p));
       toast("SOAP note extracted");
     } else {
       toast("Could not extract note — please retry", "error");
@@ -1035,7 +1194,7 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
 
   const saveManual = () => {
     const note = { ...manual, extracted_orders: { medications: [], procedures: [], labs: [], imaging: [] }, gaps: [], source: "manual" };
-    setPatients(patients.map(p => p.id === selectedId ? { ...p, capturedNote: note } : p));
+    setPatients(patients.map(p => p.id === doctorPatientId ? { ...p, capturedNote: note } : p));
     toast("Clinical note saved");
   };
 
@@ -1076,14 +1235,7 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Capture Details</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 3 — Record conversation, upload old records, or enter manually.</p>
-      <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
-      {!patient && (
-        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
-          <ClipboardList className="w-10 h-10 text-slate-200 mb-3" />
-          <p className="text-sm font-medium text-slate-500">Select a patient to capture clinical details</p>
-          <p className="text-xs text-slate-400 mt-1">Choose a patient above to record a conversation, enter SOAP notes manually, or upload old reports via OCR.</p>
-        </div>
-      )}
+      <PatientContextBar patient={patient} onChangePatient={() => setScreen("patients")} />
       {patient && (
         <div className="grid lg:grid-cols-2 gap-5">
           <div className="space-y-4">
@@ -1251,13 +1403,12 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
 }
 
 // ─── DOCTOR: DIAGNOSTIC ORDERS ────────────────────────────────
-function OrdersScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(null);
+function OrdersScreen({ patients, setPatients, toast, doctorPatientId, setDoctorPatientId, setScreen }) {
   const [input, setInput]           = useState("");
   const [listening, setListening]   = useState(false);
   const [loading, setLoading]       = useState(false);
   const recognitionRef = useRef(null);
-  const patient = patients.find(p => p.id === selectedId);
+  const patient = patients.find(p => p.id === doctorPatientId);
 
   const toggleVoice = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1281,6 +1432,7 @@ function OrdersScreen({ patients, setPatients, toast }) {
 
   const mapOrders = async () => {
     if (!input) return;
+    if (!patient) return;
     setLoading(true);
     const raw = await callClaude(
       `Map this order dictation to standard test names and LOINC codes.
@@ -1291,7 +1443,7 @@ Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": 
     );
     const order = parseJSON(raw);
     if (order) {
-      setPatients(patients.map(p => p.id === selectedId ? { ...p, diagnosticOrder: order } : p));
+      setPatients(patients.map(p => p.id === doctorPatientId ? { ...p, diagnosticOrder: order } : p));
       toast("Orders mapped to LOINC codes");
     } else {
       toast("Could not map orders — retry", "error");
@@ -1303,14 +1455,7 @@ Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": 
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Diagnostic Order</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 4 — Voice-dictated orders mapped to standard codes.</p>
-      <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
-      {!patient && (
-        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
-          <FlaskConical className="w-10 h-10 text-slate-200 mb-3" />
-          <p className="text-sm font-medium text-slate-500">Select a patient to dictate diagnostic orders</p>
-          <p className="text-xs text-slate-400 mt-1">Choose a patient above to voice-dictate or type orders and map them to LOINC codes.</p>
-        </div>
-      )}
+      <PatientContextBar patient={patient} onChangePatient={() => setScreen("patients")} />
       {patient && (
         <div className="grid lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -1363,14 +1508,13 @@ Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": 
 }
 
 // ─── DOCTOR: DIAGNOSTIC RESULTS ───────────────────────────────
-function ResultsScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId]       = useState(null);
+function ResultsScreen({ patients, setPatients, toast, doctorPatientId, setDoctorPatientId, setScreen }) {
   const [rawResults, setRawResults]       = useState("");
   const [loading, setLoading]             = useState(false);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const fileInputRef = useRef(null);
-  const patient = patients.find(p => p.id === selectedId);
+  const patient = patients.find(p => p.id === doctorPatientId);
 
   const analyze = async () => {
     if (!rawResults) return;
@@ -1383,7 +1527,7 @@ RESULTS TEXT:\n${rawResults}`,
     );
     const results = parseJSON(raw);
     if (results) {
-      setPatients(prev => prev.map(p => p.id === selectedId ? { ...p, diagnosticResults: results } : p));
+      setPatients(prev => prev.map(p => p.id === doctorPatientId ? { ...p, diagnosticResults: results } : p));
       toast("Results analysed");
     } else {
       toast("Could not parse results — retry", "error");
@@ -1406,7 +1550,7 @@ RESULTS TEXT:\n${rawResults}`,
         ? { name: file.name, status: "done",  results: parsed.results || [], date: parsed.report_date }
         : { name: file.name, status: "error", results: [],                    date: null };
       setPatients(prev => prev.map(p =>
-        p.id === selectedId
+        p.id === doctorPatientId
           ? { ...p, historicalReports: [...(p.historicalReports || []).filter(r => r.name !== file.name), entry] }
           : p
       ));
@@ -1418,7 +1562,7 @@ RESULTS TEXT:\n${rawResults}`,
 
   const removeHistorical = name =>
     setPatients(prev => prev.map(p =>
-      p.id === selectedId ? { ...p, historicalReports: p.historicalReports.filter(r => r.name !== name) } : p
+      p.id === doctorPatientId ? { ...p, historicalReports: p.historicalReports.filter(r => r.name !== name) } : p
     ));
 
   const buildTrendData = () => {
@@ -1450,14 +1594,7 @@ RESULTS TEXT:\n${rawResults}`,
     <div>
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Diagnostic Results</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 5 — Analyze results, upload historical reports, visualize trends.</p>
-      <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
-      {!patient && (
-        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
-          <Activity className="w-10 h-10 text-slate-200 mb-3" />
-          <p className="text-sm font-medium text-slate-500">Select a patient to view diagnostic results</p>
-          <p className="text-xs text-slate-400 mt-1">Choose a patient above to analyse lab results, upload historical reports, and visualise trends.</p>
-        </div>
-      )}
+      <PatientContextBar patient={patient} onChangePatient={() => setScreen("patients")} />
       {patient && (
         <>
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
@@ -1586,10 +1723,11 @@ RESULTS TEXT:\n${rawResults}`,
 
 // ─── ROOT APP ─────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser]       = useState(null);
-  const [patients, setPatients] = useState(initialPatients);
-  const [screen, setScreen]   = useState("register");
-  const [toasts, setToasts]   = useState([]);
+  const [user, setUser]           = useState(null);
+  const [patients, setPatients]   = useState(initialPatients);
+  const [screen, setScreen]       = useState("register");
+  const [toasts, setToasts]       = useState([]);
+  const [doctorPatientId, setDoctorPatientId] = useState(null);
 
   const toast = (msg, type = "success") => {
     const id = Date.now();
@@ -1604,24 +1742,27 @@ export default function App() {
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
-  const props = { patients, setPatients, toast };
+  const props    = { patients, setPatients, toast };
+  const docProps = { ...props, doctorPatientId, setDoctorPatientId, setScreen };
+  const doctorPatientName = patients.find(p => p.id === doctorPatientId)?.name ?? null;
+
   const screens = {
     doctor: {
-      patients: <PatientDetailsScreen {...props} />,
-      capture:  <CaptureScreen        {...props} />,
-      orders:   <OrdersScreen         {...props} />,
-      results:  <ResultsScreen        {...props} />,
+      patients: <PatientDetailsScreen {...docProps} />,
+      capture:  <CaptureScreen        {...docProps} />,
+      orders:   <OrdersScreen         {...docProps} />,
+      results:  <ResultsScreen        {...docProps} />,
     },
     assistant: {
       register:     <RegisterScreen     {...props} />,
       appointments: <AppointmentScreen  {...props} />,
-      claims:       <ClaimsScreen       {...props} />,
+      claims:       <ClaimsScreen       {...props} doctorPatientId={doctorPatientId} />,
     },
   };
 
   return (
     <div className="flex h-screen bg-slate-50">
-      <Sidebar user={user} screen={screen} setScreen={setScreen} onLogout={() => setUser(null)} />
+      <Sidebar user={user} screen={screen} setScreen={setScreen} onLogout={() => setUser(null)} doctorPatientName={doctorPatientName} />
       <main className="flex-1 overflow-auto p-8">
         {screens[user.role]?.[screen] ?? null}
       </main>
