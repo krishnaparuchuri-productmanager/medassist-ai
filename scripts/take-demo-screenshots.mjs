@@ -14,22 +14,20 @@ function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function clickSidebar(page, text) {
   await page.evaluate((t) => {
-    const el = [...document.querySelectorAll('nav button, aside button')].find(
-      b => b.textContent.trim().includes(t)
-    );
+    const el = [...document.querySelectorAll('nav button, aside button')]
+      .find(b => b.textContent.trim().includes(t));
     el?.click();
   }, text);
-  await wait(700);
+  await wait(800);
 }
 
 async function selectPatient(page, name) {
   await page.evaluate((n) => {
-    const btn = [...document.querySelectorAll('button')].find(
-      b => b.textContent.includes(n) && b.textContent.includes('P10')
-    );
+    const btn = [...document.querySelectorAll('button')]
+      .find(b => b.textContent.includes(n) && b.textContent.includes('P10'));
     btn?.click();
   }, name);
-  await wait(500);
+  await wait(600);
 }
 
 async function shot(page, filename, label) {
@@ -38,7 +36,7 @@ async function shot(page, filename, label) {
   console.log('saved');
 }
 
-// ── main ──────────────────────────────────────────────────────────────────────
+// ── main ─────────────────────────────────────────────────────────────────────
 console.log('\n🚀  Launching browser…');
 const browser = await puppeteer.launch({
   headless: true,
@@ -47,13 +45,12 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: W, height: H });
 
-// 01 — Login screen
+// ── 01 Login ─────────────────────────────────────────────────────────────────
 await page.goto(BASE, { waitUntil: 'networkidle2' });
 await wait(600);
 await shot(page, '01-login.png', 'Login screen');
 
-// ── Doctor Assistant flow ──────────────────────────────────────────────────
-// Click Doctor Assistant role
+// ── Login as Doctor Assistant ─────────────────────────────────────────────────
 await page.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor Assistant')?.click();
 });
@@ -63,25 +60,56 @@ await page.type('input[placeholder*="Password"]', 'demo');
 await page.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click();
 });
-await wait(1200);
+await wait(1400);
 
-// 02 — Registration + AI Intake Insights (pre-seeded from Priya Menon)
-await shot(page, '02-registration-ai-insights.png', 'Registration + AI Intake Insights');
+// ── 02 Registration — View AI Insight for Priya ───────────────────────────────
+// Click "View AI Insight" button in Priya's row to populate the insights panel
+await page.evaluate(() => {
+  const rows = [...document.querySelectorAll('div')].filter(d => d.textContent.includes('Priya Menon') && d.textContent.includes('P1003'));
+  for (const row of rows) {
+    const btn = row.querySelector('button');
+    if (btn && (btn.textContent.includes('View AI Insight') || btn.textContent.includes('View Insights'))) {
+      btn.click();
+      return;
+    }
+  }
+  // fallback: find any button with "View AI Insight" text
+  const btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('View AI Insight'));
+  btn?.click();
+});
+await wait(600);
+await shot(page, '02-registration-ai-insights.png', 'Registration + AI Intake Insights for Priya Menon');
 
-// 03 — Appointment Scheduling
+// ── 03 Intake Capture Form (click "Capture Details Now") ─────────────────────
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Capture Details Now'));
+  btn?.click();
+});
+await wait(500);
+await page.evaluate(() => window.scrollTo(0, 200));
+await wait(300);
+await shot(page, '03-intake-capture-form.png', 'Intake Detail Capture Form');
+
+// scroll back up and dismiss form
+await page.evaluate(() => window.scrollTo(0, 0));
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Skip for now');
+  btn?.click();
+});
+await wait(400);
+
+// ── 04 Appointment Scheduling ─────────────────────────────────────────────────
 await clickSidebar(page, 'Appointments');
 await selectPatient(page, 'Priya Menon');
-await wait(400);
-await shot(page, '03-appointment-scheduling.png', 'Appointment Scheduling');
+await shot(page, '04-appointment-scheduling.png', 'Appointment Scheduling — Priya Menon');
 
-// 04 — Claim Generation
+// ── 05 Claim Generation ───────────────────────────────────────────────────────
 await clickSidebar(page, 'Claim Generation');
 await selectPatient(page, 'Priya Menon');
 await wait(400);
-await shot(page, '04-claim-generation.png', 'Claim Generation');
+await shot(page, '05-claim-generation.png', 'Claim Generation — Priya Menon');
 
-// ── Doctor flow ────────────────────────────────────────────────────────────
-// Sign out and switch to Doctor
+// ── Switch to Doctor ──────────────────────────────────────────────────────────
 await page.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign out')?.click();
 });
@@ -95,41 +123,42 @@ await page.type('input[placeholder*="Password"]', 'demo');
 await page.evaluate(() => {
   [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click();
 });
-await wait(1200);
+await wait(1400);
 
-// 05 — Patient Details (default is first patient, switch to Priya)
+// ── 06 Patient Details — select Priya ────────────────────────────────────────
 await selectPatient(page, 'Priya Menon');
 await wait(400);
-await shot(page, '05-patient-details.png', 'Patient Details');
+await shot(page, '06-patient-details.png', 'Patient Details — Priya Menon');
 
-// 06 — Patient Details — Pre-Visit AI Brief visible
-// Scroll down a little so the brief card is prominent
+// ── 07 Pre-Visit AI Brief ─────────────────────────────────────────────────────
 await page.evaluate(() => window.scrollTo(0, 80));
 await wait(200);
-await shot(page, '06-pre-visit-brief.png', 'Pre-Visit AI Brief');
+await shot(page, '07-pre-visit-brief.png', 'Pre-Visit AI Brief');
 
-// 07 — Capture Details — SOAP Note
+// ── 08 Capture Details — PatientContextBar shows Priya (no re-select needed) ──
 await clickSidebar(page, 'Capture Details');
-await selectPatient(page, 'Priya Menon');
-await wait(400);
-await shot(page, '07-capture-soap-note.png', 'Capture Details — SOAP Note');
+await shot(page, '08-capture-soap-note.png', 'Capture Details — SOAP Note (patient context persists)');
 
-// 08 — Diagnostic Orders — LOINC mapped
+// ── 09 Diagnostic Orders ──────────────────────────────────────────────────────
 await clickSidebar(page, 'Diagnostic Order');
-await selectPatient(page, 'Priya Menon');
-await wait(400);
-await shot(page, '08-diagnostic-orders.png', 'Diagnostic Orders — LOINC codes');
+await shot(page, '09-diagnostic-orders.png', 'Diagnostic Orders — LOINC mapping');
 
-// 09 — Diagnostic Results — Lab analysis
+// ── 10 Diagnostic Results ─────────────────────────────────────────────────────
 await clickSidebar(page, 'Diagnostic Results');
-await selectPatient(page, 'Priya Menon');
 await wait(500);
-await shot(page, '09-diagnostic-results.png', 'Diagnostic Results — Lab analysis');
+await shot(page, '10-diagnostic-results.png', 'Diagnostic Results — Lab analysis');
 
-// 10 — Diagnostic Results — Trend chart (scroll down)
+// ── 11 Trend Chart ────────────────────────────────────────────────────────────
 await page.evaluate(() => window.scrollTo(0, 500));
 await wait(300);
-await shot(page, '10-trend-chart.png', 'Diagnostic Results — Trend chart');
+await shot(page, '11-trend-chart.png', 'Diagnostic Results — Trend chart');
+
+// ── 12 Close Visit — scroll to bottom of Patient Details ─────────────────────
+await clickSidebar(page, 'Patient Details');
+await wait(400);
+await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+await wait(400);
+await shot(page, '12-close-visit.png', 'Close Visit + Follow-up Scheduling panel');
 
 await browser.close();
-console.log(`\n✅  All screenshots saved to docs/demo-assets/\n`);
+console.log(`\n✅  12 screenshots saved to docs/demo-assets/\n`);

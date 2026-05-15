@@ -7,7 +7,7 @@
 > All screenshots and video below use **synthetic demo data** (patient: Priya Menon, P1003 — fictional).
 > LLM status verified: `claude-sonnet-4-6` active and usable at time of recording.
 
-### 📹 Demo Video (~65 seconds)
+### 📹 Demo Video (~52 seconds)
 
 <video src="docs/demo-assets/demo.mp4" controls width="100%" style="border-radius:12px"></video>
 
@@ -25,41 +25,51 @@
 
 **Patient Registration + AI Intake Insights**
 ![Registration](docs/demo-assets/02-registration-ai-insights.png)
-*Claude analyses the patient profile and surfaces monitoring priorities, suggested intake questions, and a completeness note*
+*Claude analyses the patient profile and surfaces monitoring priorities, flagged conditions, and suggested intake questions — shown per-patient in an insights panel*
+
+**Intake Detail Capture Form**
+![Intake Capture](docs/demo-assets/03-intake-capture-form.png)
+*"Capture Details Now" opens a structured form pre-populated with Claude's suggested questions — answers saved to the patient record; badge shows "✓ Details captured" once done*
 
 **Appointment Scheduling**
-![Appointments](docs/demo-assets/03-appointment-scheduling.png)
+![Appointments](docs/demo-assets/04-appointment-scheduling.png)
 *AI-suggested time slots with clinical reasoning based on patient history*
 
 **Claim Generation**
-![Claims](docs/demo-assets/04-claim-generation.png)
-*Auto-generated ICD-10 + CPT codes with gap detection and denial risk analysis*
+![Claims](docs/demo-assets/05-claim-generation.png)
+*Auto-generated ICD-10 + CPT codes with gap detection and denial risk analysis — pre-populated from the closed doctor encounter*
 
-#### 🩺 Doctor Portal
+#### 🩺 Doctor Portal — Patient-Centric Workflow
 
-**Patient Details**
-![Patient Details](docs/demo-assets/05-patient-details.png)
-*Full demographics, medical history, and past visits*
+> The doctor selects Priya Menon **once** in Patient Details. That context persists across Capture, Diagnostic Orders, and Diagnostic Results — no re-selection needed on sub-screens.
 
-**Pre-Visit AI Brief**
-![AI Brief](docs/demo-assets/06-pre-visit-brief.png)
-*Claude generates a concise pre-encounter summary with time-sensitive alerts*
+**Patient Details + Pre-Visit AI Brief**
+![Patient Details](docs/demo-assets/06-patient-details.png)
+*Full demographics, medical history, past visits — plus a Claude-generated pre-encounter brief with time-sensitive alerts*
+
+**Pre-Visit AI Brief (scrolled)**
+![AI Brief](docs/demo-assets/07-pre-visit-brief.png)
+*Concise pre-visit summary: active conditions, medication changes, overdue screenings — doctor walks in fully informed*
 
 **Capture Details — SOAP Note**
-![Capture](docs/demo-assets/07-capture-soap-note.png)
-*Structured SOAP note extracted from a doctor-patient conversation, with extracted orders and gap flags*
+![Capture](docs/demo-assets/08-capture-soap-note.png)
+*Patient context bar shows Priya — no re-selection. Claude extracts a structured SOAP note from doctor-patient conversation with orders and gap flags*
 
 **Diagnostic Orders — LOINC Mapping**
-![Orders](docs/demo-assets/08-diagnostic-orders.png)
-*Voice-dictated orders mapped to standard LOINC codes with priority and rationale*
+![Orders](docs/demo-assets/09-diagnostic-orders.png)
+*Patient context inherited. Voice-dictated orders mapped to standard LOINC codes with priority and clinical rationale*
 
 **Diagnostic Results — Lab Analysis**
-![Results](docs/demo-assets/09-diagnostic-results.png)
-*Lab values analysed, abnormals flagged, read-aloud summaries generated*
+![Results](docs/demo-assets/10-diagnostic-results.png)
+*Patient context inherited. Lab values analysed, abnormals flagged, read-aloud summaries generated*
 
 **Diagnostic Results — Trend Chart**
-![Trends](docs/demo-assets/10-trend-chart.png)
+![Trends](docs/demo-assets/11-trend-chart.png)
 *Lab values visualised across historical uploads with reference range overlays*
+
+**Close Visit + AI Follow-Up Scheduling**
+![Close Visit](docs/demo-assets/12-close-visit.png)
+*Doctor clicks Close Visit — Claude suggests a follow-up date, specialist, and clinical reason. Confirming saves the closure and queues the claim for the Assistant portal*
 
 ---
 

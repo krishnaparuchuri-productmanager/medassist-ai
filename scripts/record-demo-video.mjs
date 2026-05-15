@@ -22,139 +22,6 @@ const FADE  = 0.4;   // fade-to-black transition
 
 function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-const steps = [
-  // ── 1. Login ──────────────────────────────────────────────────────────────
-  {
-    label: null,
-    holdSecs: 3,
-    action: async (page) => {
-      await page.goto(BASE, { waitUntil: 'networkidle2' });
-      await wait(600);
-    },
-  },
-  // ── 2. Patient Registration + AI Intake Insights ─────────────────────────
-  {
-    label: {
-      tag:     '🏥  Phase 1 — Patient Registration',
-      ai:      'Claude analyses the profile and surfaces monitoring priorities, intake flags, and suggested questions',
-      benefit: 'Zero manual data-entry errors — instant, structured patient intake',
-    },
-    action: async (page) => {
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor Assistant')?.click()
-      );
-      await wait(300);
-      await page.type('input[placeholder="Username"]', 'admin');
-      await page.type('input[placeholder*="Password"]', 'demo');
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click()
-      );
-      await wait(1400);
-    },
-  },
-  // ── 3. Appointment Scheduling ─────────────────────────────────────────────
-  {
-    label: {
-      tag:     '📅  Phase 2 — Appointment Scheduling',
-      ai:      'Claude suggests optimal slots based on patient history, condition urgency, and workload',
-      benefit: 'Smarter scheduling — fewer no-shows, less back-and-forth for staff',
-    },
-    action: async (page) => {
-      await clickSidebar(page, 'Appointments');
-      await selectPatient(page, 'Priya Menon');
-    },
-  },
-  // ── 4. Patient Details + Pre-Visit Brief ─────────────────────────────────
-  {
-    label: {
-      tag:     '👤  Phase 3 — Patient Details + Pre-Visit Brief',
-      ai:      'Claude generates a concise brief — active conditions, medication changes, overdue screenings — before the encounter',
-      benefit: 'Doctor walks in fully informed — no chart digging before the visit',
-    },
-    action: async (page) => {
-      // Sign out and switch to Doctor
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign out')?.click()
-      );
-      await wait(700);
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor')?.click()
-      );
-      await wait(300);
-      await page.type('input[placeholder="Username"]', 'doctor');
-      await page.type('input[placeholder*="Password"]', 'demo');
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click()
-      );
-      await wait(1400);
-      await selectPatient(page, 'Priya Menon');
-    },
-  },
-  // ── 5. Capture Details — SOAP Note ───────────────────────────────────────
-  {
-    label: {
-      tag:     '🎙️  Phase 3 — Capture Details & SOAP Extraction',
-      ai:      'Claude transcribes doctor-patient conversations and extracts structured SOAP notes with extracted orders and gap flags',
-      benefit: 'Saves 2+ hours of daily documentation — doctor speaks, Claude writes',
-    },
-    action: async (page) => {
-      await clickSidebar(page, 'Capture Details');
-      await selectPatient(page, 'Priya Menon');
-    },
-  },
-  // ── 6. Diagnostic Orders — LOINC mapping ─────────────────────────────────
-  {
-    label: {
-      tag:     '🔬  Phase 4 — Diagnostic Orders',
-      ai:      'Claude maps voice-dictated or typed orders to LOINC codes with priority ranking and clinical rationale',
-      benefit: 'No manual code lookup — instant clinical standardisation at the point of care',
-    },
-    action: async (page) => {
-      await clickSidebar(page, 'Diagnostic Order');
-      await selectPatient(page, 'Priya Menon');
-    },
-  },
-  // ── 7. Diagnostic Results — Analysis + Trends ────────────────────────────
-  {
-    label: {
-      tag:     '📊  Phase 5 — Diagnostic Results',
-      ai:      'Claude analyses lab values, flags abnormals, generates read-aloud summaries, and visualises trends across historical uploads',
-      benefit: 'Faster clinical decisions — critical values surface instantly, nothing slips through',
-    },
-    action: async (page) => {
-      await clickSidebar(page, 'Diagnostic Results');
-      await selectPatient(page, 'Priya Menon');
-      await wait(400);
-    },
-  },
-  // ── 8. Claim Generation ───────────────────────────────────────────────────
-  {
-    label: {
-      tag:     '🧾  Phase 6 — Claim Generation',
-      ai:      'Claude auto-generates ICD-10 + CPT codes, detects documentation gaps, and flags denial risk patterns against a prior-claims corpus',
-      benefit: 'Faster reimbursements — fewer rejections, compliance built in from the first draft',
-    },
-    action: async (page) => {
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign out')?.click()
-      );
-      await wait(700);
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor Assistant')?.click()
-      );
-      await wait(300);
-      await page.type('input[placeholder="Username"]', 'admin');
-      await page.type('input[placeholder*="Password"]', 'demo');
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click()
-      );
-      await wait(1400);
-      await clickSidebar(page, 'Claim Generation');
-      await selectPatient(page, 'Priya Menon');
-    },
-  },
-];
-
 // ── helpers ──────────────────────────────────────────────────────────────────
 async function clickSidebar(page, text) {
   await page.evaluate((t) => {
@@ -241,6 +108,236 @@ async function crossFade(page) {
   await page.evaluate(() => document.getElementById('__fade')?.remove());
 }
 
+const steps = [
+  // ── 1. Login ─────────────────────────────────────────────────────────────────
+  {
+    label: null,
+    holdSecs: 3,
+    action: async (page) => {
+      await page.goto(BASE, { waitUntil: 'networkidle2' });
+      await wait(600);
+    },
+  },
+
+  // ── 2. Patient Registration + AI Intake Insights for Priya Menon ─────────────
+  {
+    label: {
+      tag:     '🏥  Phase 1 — Patient Registration + AI Intake Insights',
+      ai:      'Claude analyses the patient profile and surfaces monitoring priorities, flagged conditions, and suggested intake questions',
+      benefit: 'Zero manual triage errors — instant, structured patient intake from the first touch',
+    },
+    action: async (page) => {
+      // Login as Doctor Assistant
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor Assistant')?.click()
+      );
+      await wait(300);
+      await page.type('input[placeholder="Username"]', 'admin');
+      await page.type('input[placeholder*="Password"]', 'demo');
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click()
+      );
+      await wait(1400);
+
+      // Click "View AI Insight" for Priya Menon to populate the insights panel
+      await page.evaluate(() => {
+        const rows = [...document.querySelectorAll('div')]
+          .filter(d => d.textContent.includes('Priya Menon') && d.textContent.includes('P1003'));
+        for (const row of rows) {
+          const btn = row.querySelector('button');
+          if (btn && (btn.textContent.includes('View AI Insight') || btn.textContent.includes('View Insights'))) {
+            btn.click();
+            return;
+          }
+        }
+        // fallback
+        const btn = [...document.querySelectorAll('button')]
+          .find(b => b.textContent.includes('View AI Insight'));
+        btn?.click();
+      });
+      await wait(800);
+    },
+  },
+
+  // ── 3. Intake Capture Form ────────────────────────────────────────────────────
+  {
+    label: {
+      tag:     '📋  Phase 1 (cont.) — Intake Detail Capture',
+      ai:      'Claude-suggested questions are pre-populated into a structured form — staff fill in answers in one step',
+      benefit: 'Complete, consistent intake every time — no sticky notes, no missing data',
+    },
+    action: async (page) => {
+      // Click "Capture Details Now" inside the insights panel
+      await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')]
+          .find(b => b.textContent.includes('Capture Details Now'));
+        btn?.click();
+      });
+      await wait(500);
+      // Scroll down slightly so the form is visible
+      await page.evaluate(() => window.scrollTo(0, 200));
+      await wait(300);
+
+      // Type a sample answer into the first textarea if present
+      const firstTextarea = await page.$('textarea');
+      if (firstTextarea) {
+        await firstTextarea.click();
+        await firstTextarea.type('Patient reports mild breathlessness on exertion for the past 2 weeks.', { delay: 18 });
+        await wait(400);
+      }
+    },
+  },
+
+  // ── 4. Appointment Scheduling ─────────────────────────────────────────────────
+  {
+    label: {
+      tag:     '📅  Phase 2 — Appointment Scheduling',
+      ai:      'Claude suggests optimal slots based on patient history, condition urgency, and existing workload',
+      benefit: 'Smarter scheduling — fewer no-shows, less back-and-forth for staff',
+    },
+    action: async (page) => {
+      // Dismiss intake form first (Skip for now)
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('button')]
+          .find(b => b.textContent.trim() === 'Skip for now');
+        btn?.click();
+      });
+      await wait(400);
+
+      await clickSidebar(page, 'Appointments');
+      await selectPatient(page, 'Priya Menon');
+    },
+  },
+
+  // ── 5. Doctor Login + Patient Details ────────────────────────────────────────
+  {
+    label: {
+      tag:     '👤  Phase 3 — Doctor Portal: Patient Details + Pre-Visit Brief',
+      ai:      'Claude generates a concise brief — active conditions, medication alerts, overdue screenings — before the encounter begins',
+      benefit: 'Doctor walks in fully informed — no chart digging, no missed flags',
+    },
+    action: async (page) => {
+      // Sign out from Assistant
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign out')?.click()
+      );
+      await wait(700);
+
+      // Login as Doctor
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor')?.click()
+      );
+      await wait(300);
+      await page.type('input[placeholder="Username"]', 'doctor');
+      await page.type('input[placeholder*="Password"]', 'demo');
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click()
+      );
+      await wait(1400);
+
+      // Select Priya once — context persists across all doctor screens
+      await selectPatient(page, 'Priya Menon');
+      await wait(400);
+      // Scroll slightly to show the Pre-Visit AI Brief
+      await page.evaluate(() => window.scrollTo(0, 80));
+      await wait(200);
+    },
+  },
+
+  // ── 6. Capture Details — SOAP Note ───────────────────────────────────────────
+  {
+    label: {
+      tag:     '🎙️  Phase 3 — Capture Details & SOAP Extraction',
+      ai:      'Claude transcribes doctor-patient conversations and extracts structured SOAP notes with orders and gap flags',
+      benefit: 'Saves 2+ hours of daily documentation — doctor speaks, Claude writes the note',
+    },
+    action: async (page) => {
+      // PatientContextBar carries Priya forward — no re-selection needed
+      await clickSidebar(page, 'Capture Details');
+      // No selectPatient call — context is inherited from Patient Details
+    },
+  },
+
+  // ── 7. Diagnostic Orders — LOINC Mapping ─────────────────────────────────────
+  {
+    label: {
+      tag:     '🔬  Phase 4 — Diagnostic Orders',
+      ai:      'Claude maps voice-dictated or typed orders to LOINC codes with priority ranking and clinical rationale',
+      benefit: 'No manual code lookup — instant clinical standardisation at the point of care',
+    },
+    action: async (page) => {
+      // PatientContextBar carries Priya forward — no re-selection needed
+      await clickSidebar(page, 'Diagnostic Order');
+    },
+  },
+
+  // ── 8. Diagnostic Results — Analysis + Trends ────────────────────────────────
+  {
+    label: {
+      tag:     '📊  Phase 5 — Diagnostic Results',
+      ai:      'Claude analyses lab values, flags abnormals, generates read-aloud summaries, and visualises trends across historical uploads',
+      benefit: 'Critical values surface instantly — faster clinical decisions, nothing slips through',
+    },
+    action: async (page) => {
+      // PatientContextBar carries Priya forward — no re-selection needed
+      await clickSidebar(page, 'Diagnostic Results');
+      await wait(500);
+    },
+  },
+
+  // ── 9. Close Visit ────────────────────────────────────────────────────────────
+  {
+    label: {
+      tag:     '✅  Phase 5 — Close Visit + AI Follow-Up Scheduling',
+      ai:      'Claude suggests a follow-up appointment date, specialist, and clinical reason based on the completed encounter',
+      benefit: 'One click closes the visit, books the follow-up, and queues the claim — zero admin handoff',
+    },
+    action: async (page) => {
+      // Navigate back to Patient Details to show Close Visit panel
+      await clickSidebar(page, 'Patient Details');
+      await wait(400);
+      // Scroll to bottom where Close Visit panel lives
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await wait(500);
+    },
+  },
+
+  // ── 10. Claim Generation ──────────────────────────────────────────────────────
+  {
+    label: {
+      tag:     '🧾  Phase 6 — Claim Generation',
+      ai:      'Claude auto-generates ICD-10 + CPT codes, detects documentation gaps, and flags denial risk patterns against a prior-claims corpus',
+      benefit: 'Faster reimbursements — fewer rejections, compliance built in from the very first draft',
+    },
+    action: async (page) => {
+      // Sign out from Doctor portal
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign out')?.click()
+      );
+      await wait(700);
+
+      // Login as Doctor Assistant
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Doctor Assistant')?.click()
+      );
+      await wait(300);
+      await page.type('input[placeholder="Username"]', 'admin');
+      await page.type('input[placeholder*="Password"]', 'demo');
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Sign In')?.click()
+      );
+      await wait(1400);
+
+      // Navigate to Claim Generation — Priya is pre-selected from the closed visit
+      await clickSidebar(page, 'Claim Generation');
+      await wait(400);
+      // Ensure Priya is selected (fallback if state was not preserved across login)
+      await selectPatient(page, 'Priya Menon');
+    },
+  },
+];
+
 // ── main ──────────────────────────────────────────────────────────────────────
 console.log('\n🚀  Launching browser…\n');
 const browser = await puppeteer.launch({
@@ -269,7 +366,8 @@ for (let i = 0; i < steps.length; i++) {
 await browser.close();
 
 // ── encode ────────────────────────────────────────────────────────────────────
-console.log(`\n🎬  Encoding ${frameIndex} frames → demo.mp4 …`);
+const totalSecs = Math.round(frameIndex / FPS);
+console.log(`\n🎬  Encoding ${frameIndex} frames (≈ ${totalSecs}s) → demo.mp4 …`);
 await new Promise((resolve, reject) => {
   ffmpeg()
     .input(join(framesDir, 'frame_%06d.png'))
@@ -290,4 +388,4 @@ await new Promise((resolve, reject) => {
 });
 
 rmSync(framesDir, { recursive: true, force: true });
-console.log(`\n✅  Saved: docs/demo-assets/demo.mp4\n`);
+console.log(`\n✅  Saved: docs/demo-assets/demo.mp4  (${totalSecs}s)\n`);
