@@ -864,7 +864,7 @@ Return ONLY JSON:
 
 // ─── DOCTOR: PATIENT DETAILS ──────────────────────────────────
 function PatientDetailsScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId]   = useState(patients[0]?.id);
+  const [selectedId, setSelectedId]   = useState(null);
   const [briefLoading, setBriefLoading] = useState(false);
   const patient = patients.find(p => p.id === selectedId);
 
@@ -894,6 +894,13 @@ Return ONLY JSON: {
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Patient Details</h2>
       <p className="text-slate-500 mb-5 text-sm">Full patient context — demographics, history, and visits.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
+      {!patient && (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
+          <User className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-sm font-medium text-slate-500">Select a patient to view their details</p>
+          <p className="text-xs text-slate-400 mt-1">Choose a patient above to see demographics, medical history, past visits, and generate a Pre-Visit AI Brief.</p>
+        </div>
+      )}
       {patient && (
         <>
           {/* AI Pre-Visit Brief */}
@@ -973,7 +980,7 @@ Return ONLY JSON: {
 
 // ─── DOCTOR: CAPTURE DETAILS ──────────────────────────────────
 function CaptureScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(patients[0]?.id);
+  const [selectedId, setSelectedId] = useState(null);
   const [mode, setMode]             = useState("conversation");
   const [conversation, setConversation] = useState("");
   const [manual, setManual] = useState({ chief_complaint: "", history_of_present_illness: "", examination_findings: "", assessment: "", plan: "" });
@@ -1070,6 +1077,13 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Capture Details</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 3 — Record conversation, upload old records, or enter manually.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
+      {!patient && (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
+          <ClipboardList className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-sm font-medium text-slate-500">Select a patient to capture clinical details</p>
+          <p className="text-xs text-slate-400 mt-1">Choose a patient above to record a conversation, enter SOAP notes manually, or upload old reports via OCR.</p>
+        </div>
+      )}
       {patient && (
         <div className="grid lg:grid-cols-2 gap-5">
           <div className="space-y-4">
@@ -1238,7 +1252,7 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
 
 // ─── DOCTOR: DIAGNOSTIC ORDERS ────────────────────────────────
 function OrdersScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId] = useState(patients[0]?.id);
+  const [selectedId, setSelectedId] = useState(null);
   const [input, setInput]           = useState("");
   const [listening, setListening]   = useState(false);
   const [loading, setLoading]       = useState(false);
@@ -1290,6 +1304,13 @@ Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": 
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Diagnostic Order</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 4 — Voice-dictated orders mapped to standard codes.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
+      {!patient && (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
+          <FlaskConical className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-sm font-medium text-slate-500">Select a patient to dictate diagnostic orders</p>
+          <p className="text-xs text-slate-400 mt-1">Choose a patient above to voice-dictate or type orders and map them to LOINC codes.</p>
+        </div>
+      )}
       {patient && (
         <div className="grid lg:grid-cols-2 gap-5">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -1343,7 +1364,7 @@ Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": 
 
 // ─── DOCTOR: DIAGNOSTIC RESULTS ───────────────────────────────
 function ResultsScreen({ patients, setPatients, toast }) {
-  const [selectedId, setSelectedId]       = useState(patients[0]?.id);
+  const [selectedId, setSelectedId]       = useState(null);
   const [rawResults, setRawResults]       = useState("");
   const [loading, setLoading]             = useState(false);
   const [historicalLoading, setHistoricalLoading] = useState(false);
@@ -1430,6 +1451,13 @@ RESULTS TEXT:\n${rawResults}`,
       <h2 className="text-2xl font-bold text-slate-800 mb-1">Diagnostic Results</h2>
       <p className="text-slate-500 mb-5 text-sm">Phase 5 — Analyze results, upload historical reports, visualize trends.</p>
       <PatientSelector patients={patients} selectedId={selectedId} onSelect={setSelectedId} accent="indigo" />
+      {!patient && (
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-xl border border-slate-200 mt-2">
+          <Activity className="w-10 h-10 text-slate-200 mb-3" />
+          <p className="text-sm font-medium text-slate-500">Select a patient to view diagnostic results</p>
+          <p className="text-xs text-slate-400 mt-1">Choose a patient above to analyse lab results, upload historical reports, and visualise trends.</p>
+        </div>
+      )}
       {patient && (
         <>
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
