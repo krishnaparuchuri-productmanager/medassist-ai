@@ -117,17 +117,27 @@ MedAssist AI covers **6 phases** of the clinical workflow across two role-based 
 ### 👩‍💼 Doctor Assistant Portal
 | Screen | What Claude Does |
 |--------|-----------------|
-| **Patient Registration** | Registers patients and generates AI Intake Insights — monitoring priorities, suggested questions, and an intake note |
+| **Patient Registration** | Registers patients and generates AI Intake Insights — monitoring priorities, suggested questions, and a completeness note. Insights are patient-specific, auto-dismiss after 4 seconds, and are retrievable per patient from the list. |
 | **Appointment Scheduling** | Suggests time slots with AI rationale based on patient history |
-| **Claim Generation** | Auto-generates ICD-10 + CPT codes, flags denial risks, compares against prior cases |
+| **Claim Generation** | Auto-generates ICD-10 + CPT codes, flags denial risks, compares against prior cases. Auto-populated from the completed doctor encounter when accessed after visit closure. |
 
-### 🩺 Doctor Portal
+### 🩺 Doctor Portal — Patient-Centric Workflow
+
+The doctor portal is **patient-centric**: the doctor selects a patient once in Patient Details and that context persists across all subsequent screens. No re-selection required.
+
 | Screen | What Claude Does |
 |--------|-----------------|
-| **Patient Details** | Displays full demographics, medical history, past visits, and generates a Pre-Visit AI Brief |
-| **Capture Details** | Transcribes doctor-patient conversations (live mic or text), extracts SOAP notes via Claude, OCRs uploaded medical reports |
-| **Diagnostic Orders** | Maps voice-dictated orders to LOINC codes with priority and rationale |
-| **Diagnostic Results** | Analyzes lab values, flags abnormals, reads results aloud, visualizes trends across historical uploads |
+| **Patient Details** | Select a patient once — context carries through the full encounter. Displays demographics, medical history, past visits, and generates a Pre-Visit AI Brief. Includes a **Close Visit** flow at the end of the encounter. |
+| **Capture Details** | Patient context inherited — no re-selection. Transcribes doctor-patient conversations (live mic or text), extracts SOAP notes via Claude, OCRs uploaded medical reports. |
+| **Diagnostic Orders** | Patient context inherited. Maps voice-dictated orders to LOINC codes with priority and rationale. |
+| **Diagnostic Results** | Patient context inherited. Analyzes lab values, flags abnormals, reads results aloud, visualizes trends across historical uploads. |
+
+#### 🔒 Close Visit Flow
+At the end of the encounter, the doctor clicks **Close Visit** in Patient Details:
+1. Claude AI suggests a follow-up appointment date, time, doctor, and clinical reason
+2. The doctor can edit or override any follow-up field
+3. Clicking **Confirm & Close — Generate Claim** saves the visit closure, books the follow-up appointment, and automatically navigates to Claim Generation
+4. Claim Generation pre-selects the patient and has all encounter data (SOAP note, diagnostic orders, results) ready for one-click claim generation
 
 ---
 
