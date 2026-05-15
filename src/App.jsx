@@ -463,10 +463,12 @@ function Section({ label, value }) {
 function RegisterScreen({ patients, setPatients, toast }) {
   const [form, setForm] = useState({ name: "", age: "", gender: "Female", phone: "", dob: "" });
   const [insightLoading, setInsightLoading] = useState(false);
-  // flashInsight: shown for 4 s after registration — tied to the just-registered patient
-  const [flashInsight, setFlashInsight] = useState(null); // { patientName, insights }
+  // flashInsight: shown for 10 s after registration — tied to the just-registered patient
+  const [flashInsight, setFlashInsight] = useState(null); // { patientId, patientName, insights }
   // viewInsight: shown when user clicks "View AI Insight" from the patient list
-  const [viewInsight, setViewInsight] = useState(null);   // { patientName, insights }
+  const [viewInsight, setViewInsight] = useState(null);   // { patientId, patientName, insights }
+  // captureState: tracks in-progress intake detail capture
+  const [captureState, setCaptureState] = useState(null); // { patientId, patientName, questions: [], answers: {} }
   const flashTimer = useRef(null);
 
   // Clear timers on unmount
@@ -505,10 +507,10 @@ Return ONLY JSON:
     setInsightLoading(false);
     if (insights) {
       setPatients(prev => prev.map(pt => pt.id === p.id ? { ...pt, registrationInsights: insights } : pt));
-      // Show flash insight with patient name, auto-dismiss after 4 s
-      setFlashInsight({ patientName: p.name, insights });
+      // Show flash insight with patient name, auto-dismiss after 10 s
+      setFlashInsight({ patientId: p.id, patientName: p.name, insights });
       clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlashInsight(null), 4000);
+      flashTimer.current = setTimeout(() => setFlashInsight(null), 10000);
     }
   };
 
@@ -516,12 +518,38 @@ Return ONLY JSON:
   const activeInsight = flashInsight ?? viewInsight;
   const isFlash = !!flashInsight;
 
-  const InsightsPanel = ({ data, patientName }) => (
+  const startCapture = ({ patientId, patientName, insights }) => {
+    clearTimeout(flashTimer.current);
+    setFlashInsight(null);
+    setViewInsight(null);
+    setCaptureState({
+      patientId,
+      patientName,
+      questions: insights.suggested_questions || [],
+      answers: {},
+    });
+  };
+
+  const saveCapture = () => {
+    if (!captureState) return;
+    const intakeDetails = {
+      answers: captureState.questions.map((q, i) => ({
+        question: q,
+        response: captureState.answers[i] || "",
+      })),
+      capturedAt: TODAY,
+    };
+    setPatients(prev => prev.map(p =>
+      p.id === captureState.patientId ? { ...p, intakeDetails } : p
+    ));
+    setCaptureState(null);
+    toast("Intake details saved");
+  };
+
+  const InsightsPanel = ({ data, patientId, patientName }) => (
     <div className="space-y-4 text-sm">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-2.5 py-0.5">
-          {patientName}
-        </span>
+        <span className="text-xs text-slate-500">Use these suggestions to capture details now or return later.</span>
         {!isFlash && (
           <button onClick={() => setViewInsight(null)}
             className="text-slate-400 hover:text-slate-600 text-xs underline">
@@ -555,6 +583,11 @@ Return ONLY JSON:
           {data.intake_note}
         </div>
       )}
+      <button
+        onClick={() => startCapture({ patientId, patientName, insights: data })}
+        className="w-full py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+        <ClipboardList className="w-4 h-4" /> Capture Details Now
+      </button>
     </div>
   );
 
@@ -606,8 +639,12 @@ Return ONLY JSON:
 
         {/* AI Intake Insights */}
         <div className={`bg-white rounded-xl border p-5 transition-all duration-300 ${isFlash ? "border-teal-300 shadow-md shadow-teal-50" : "border-slate-200"}`}>
-          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <Brain className="w-4 h-4 text-teal-500" /> AI Intake Insights
+          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2 flex-wrap">
+            <Brain className="w-4 h-4 text-teal-500 flex-shrink-0" />
+            <span>
+              AI Intake Insights
+              {activeInsight && <span className="text-teal-600"> for {activeInsight.patientName}</span>}
+            </span>
             {isFlash && <span className="ml-auto text-xs text-teal-500 animate-pulse">auto-closing…</span>}
           </h3>
           {insightLoading ? (
@@ -616,7 +653,7 @@ Return ONLY JSON:
               <span className="text-sm">Analysing patient profile…</span>
             </div>
           ) : activeInsight ? (
-            <InsightsPanel data={activeInsight.insights} patientName={activeInsight.patientName} />
+            <InsightsPanel data={activeInsight.insights} patientId={activeInsight.patientId} patientName={activeInsight.patientName} />
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Brain className="w-10 h-10 text-slate-200 mb-3" />
@@ -625,6 +662,47 @@ Return ONLY JSON:
           )}
         </div>
       </div>
+
+      {/* Intake Detail Capture Form */}
+      {captureState && (
+        <div className="mt-5 bg-white rounded-xl border border-teal-200 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-teal-500" />
+              Capture Intake Details — <span className="text-teal-600">{captureState.patientName}</span>
+            </h3>
+            <button onClick={() => setCaptureState(null)}
+              className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-md px-2.5 py-1">
+              Skip for now
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mb-4">Answer the AI-suggested intake questions below. These will be saved to the patient record.</p>
+          <div className="space-y-3">
+            {captureState.questions.map((q, i) => (
+              <div key={i}>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{q}</label>
+                <textarea
+                  value={captureState.answers[i] || ""}
+                  onChange={e => setCaptureState(prev => ({ ...prev, answers: { ...prev.answers, [i]: e.target.value } }))}
+                  placeholder="Enter response…"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:border-teal-400"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button onClick={() => setCaptureState(null)}
+              className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm">
+              Skip for now
+            </button>
+            <button onClick={saveCapture}
+              className="flex-1 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" /> Save Intake Details
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Registered Patients */}
       <div className="mt-5 bg-white rounded-xl border border-slate-200 p-5">
@@ -637,17 +715,35 @@ Return ONLY JSON:
                 <div className="text-xs text-slate-500">{p.id} · {p.age}y · {p.gender} · {p.phone || "no phone"}</div>
               </div>
               <div className="flex items-center gap-3">
-                {p.registrationInsights && (
+                {p.intakeDetails && (
+                  <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Details captured
+                  </span>
+                )}
+                {p.registrationInsights && !p.intakeDetails && (
                   <button
                     onClick={() => {
                       clearTimeout(flashTimer.current);
                       setFlashInsight(null);
-                      setViewInsight({ patientName: p.name, insights: p.registrationInsights });
+                      setViewInsight({ patientId: p.id, patientName: p.name, insights: p.registrationInsights });
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                     className="text-xs text-teal-600 hover:text-teal-800 border border-teal-200 hover:border-teal-400 bg-teal-50 hover:bg-teal-100 rounded-md px-2.5 py-1 transition-colors flex items-center gap-1"
                   >
                     <Brain className="w-3 h-3" /> View AI Insight
+                  </button>
+                )}
+                {p.registrationInsights && p.intakeDetails && (
+                  <button
+                    onClick={() => {
+                      clearTimeout(flashTimer.current);
+                      setFlashInsight(null);
+                      setViewInsight({ patientId: p.id, patientName: p.name, insights: p.registrationInsights });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-md px-2.5 py-1 transition-colors flex items-center gap-1"
+                  >
+                    <Brain className="w-3 h-3" /> View Insights
                   </button>
                 )}
                 <span className="text-xs text-slate-500">{p.pastVisits.length} visits</span>
