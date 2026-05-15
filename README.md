@@ -82,37 +82,6 @@ A full-stack React web application that uses Anthropic's Claude API to automate 
 
 ---
 
-## 📸 Screenshots
-
-### Login
-![Login Screen](docs/screenshots/01_login.png)
-
-### 👩‍💼 Doctor Assistant Portal
-
-**Patient Registration** — Register patients; Claude generates AI Intake Insights (monitoring priorities, suggested questions, intake note)
-![Patient Registration](docs/screenshots/02_assistant_patient_registration.png)
-
-**Appointment Schedule** — AI-suggested time slots based on patient context
-![Appointments](docs/screenshots/03_assistant_appointments.png)
-
-**Claim Generation** — Auto-generates ICD-10/CPT codes with gap detection
-![Claim Generation](docs/screenshots/04_assistant_claim_generation.png)
-
-### 🩺 Doctor Portal
-
-**Patient Details** — Full demographics, medical history, and past visits
-![Patient Details](docs/screenshots/05_doctor_patient_details.png)
-
-**Capture Details** — Voice transcription and SOAP note extraction
-![Capture Details](docs/screenshots/06_doctor_capture_details.png)
-
-**Diagnostic Order** — Voice-dictated orders mapped to LOINC codes
-![Diagnostic Order](docs/screenshots/07_doctor_diagnostic_order.png)
-
-**Diagnostic Results** — Lab analysis, abnormality flagging, and trend charts
-![Diagnostic Results](docs/screenshots/08_doctor_diagnostic_results.png)
-
----
 
 ## ✨ What It Does
 
@@ -306,6 +275,7 @@ Built by **Krishna Chowdari Paruchuri** as an AI product prototype demonstrating
 
 - GitHub: [@krishnaparuchuri-productmanager](https://github.com/krishnaparuchuri-productmanager)
 - Email: krishna1parchuri@gmail.com
+- Website: https://krishnaparuchuri.com
 
 ---
 
