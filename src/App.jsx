@@ -968,8 +968,7 @@ Return ONLY JSON: { "suggested_date": "YYYY-MM-DD", "suggested_time": "HH:MM AM/
       : p
     ));
     setShowCloseVisit(false);
-    toast("Visit closed — navigating to Claim Generation");
-    setTimeout(() => setScreen("claims"), 600);
+    toast("Visit closed — claim data ready for the assistant portal");
   };
 
   return (
@@ -1071,12 +1070,9 @@ Return ONLY JSON: { "suggested_date": "YYYY-MM-DD", "suggested_time": "HH:MM AM/
             </div>
 
             {patient.closedVisit && (
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-sm text-slate-500">Visit closed on <strong>{patient.closedVisit}</strong>.</p>
-                <button onClick={() => setScreen("claims")}
-                  className="text-sm text-indigo-600 hover:text-indigo-800 underline">
-                  View Claim →
-                </button>
+              <div className="mt-3 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <p className="text-sm text-slate-600">Visit closed on <strong>{patient.closedVisit}</strong>. The assistant can now generate the claim in the Assistant Portal.</p>
               </div>
             )}
 
