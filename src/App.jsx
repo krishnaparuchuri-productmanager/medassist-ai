@@ -419,14 +419,14 @@ function Section({ label, value }) {
 function RegisterScreen({ patients, setPatients, toast }) {
   const [form, setForm] = useState({ name: "", age: "", gender: "Female", phone: "", dob: "" });
   const [insightLoading, setInsightLoading] = useState(false);
-  const [lastInsights, setLastInsights] = useState(null);
+  // flashInsight: shown for 4 s after registration — tied to the just-registered patient
+  const [flashInsight, setFlashInsight] = useState(null); // { patientName, insights }
+  // viewInsight: shown when user clicks "View AI Insight" from the patient list
+  const [viewInsight, setViewInsight] = useState(null);   // { patientName, insights }
+  const flashTimer = useRef(null);
 
-  // On mount: pre-fill the insights panel with the most recently registered
-  // patient that has insights — makes demo state visible immediately.
-  useEffect(() => {
-    const last = [...patients].reverse().find(p => p.registrationInsights);
-    if (last) setLastInsights(last.registrationInsights);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Clear timers on unmount
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
 
   const save = async () => {
     if (!form.name || !form.age) return;
@@ -441,8 +441,11 @@ function RegisterScreen({ patients, setPatients, toast }) {
     setForm({ name: "", age: "", gender: "Female", phone: "", dob: "" });
     toast("Patient registered");
 
+    // Clear any previously pinned insight
+    setViewInsight(null);
+    setFlashInsight(null);
     setInsightLoading(true);
-    setLastInsights(null);
+
     const raw = await callClaude(
       `A new patient has just been registered. Analyse their profile and return intake insights.
 PATIENT: ${JSON.stringify({ name: p.name, age: p.age, gender: p.gender, dob: p.dob })}
@@ -455,12 +458,61 @@ Return ONLY JSON:
       "You are a clinical intake assistant. Output only valid JSON."
     );
     const insights = parseJSON(raw);
-    if (insights) {
-      setLastInsights(insights);
-      setPatients(prev => prev.map(pt => pt.id === p.id ? { ...pt, registrationInsights: insights } : pt));
-    }
     setInsightLoading(false);
+    if (insights) {
+      setPatients(prev => prev.map(pt => pt.id === p.id ? { ...pt, registrationInsights: insights } : pt));
+      // Show flash insight with patient name, auto-dismiss after 4 s
+      setFlashInsight({ patientName: p.name, insights });
+      clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setFlashInsight(null), 4000);
+    }
   };
+
+  // The insight currently shown in the panel
+  const activeInsight = flashInsight ?? viewInsight;
+  const isFlash = !!flashInsight;
+
+  const InsightsPanel = ({ data, patientName }) => (
+    <div className="space-y-4 text-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-100 rounded-full px-2.5 py-0.5">
+          {patientName}
+        </span>
+        {!isFlash && (
+          <button onClick={() => setViewInsight(null)}
+            className="text-slate-400 hover:text-slate-600 text-xs underline">
+            Close
+          </button>
+        )}
+      </div>
+      <div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Monitoring Priorities</div>
+        <ul className="space-y-1.5">
+          {data.monitoring_priorities?.map((item, i) => (
+            <li key={i} className="flex items-start gap-2 text-slate-700">
+              <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 mt-0.5 flex-shrink-0" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Suggested Questions</div>
+        <ul className="space-y-1.5">
+          {data.suggested_questions?.map((q, i) => (
+            <li key={i} className="flex items-start gap-2 text-slate-700">
+              <span className="text-teal-500 font-bold mt-0.5 flex-shrink-0">?</span> {q}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {data.intake_note && (
+        <div className="p-3 bg-teal-50 rounded-lg border border-teal-100 text-xs text-teal-800">
+          {data.intake_note}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div>
@@ -508,45 +560,19 @@ Return ONLY JSON:
           </div>
         </div>
 
-        {/* AI Intake Insights — replaces the raw JSON payload panel */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        {/* AI Intake Insights */}
+        <div className={`bg-white rounded-xl border p-5 transition-all duration-300 ${isFlash ? "border-teal-300 shadow-md shadow-teal-50" : "border-slate-200"}`}>
           <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
             <Brain className="w-4 h-4 text-teal-500" /> AI Intake Insights
+            {isFlash && <span className="ml-auto text-xs text-teal-500 animate-pulse">auto-closing…</span>}
           </h3>
           {insightLoading ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
               <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
               <span className="text-sm">Analysing patient profile…</span>
             </div>
-          ) : lastInsights ? (
-            <div className="space-y-4 text-sm">
-              <div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Monitoring Priorities</div>
-                <ul className="space-y-1.5">
-                  {lastInsights.monitoring_priorities?.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-slate-700">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 mt-0.5 flex-shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Suggested Questions</div>
-                <ul className="space-y-1.5">
-                  {lastInsights.suggested_questions?.map((q, i) => (
-                    <li key={i} className="flex items-start gap-2 text-slate-700">
-                      <span className="text-teal-500 font-bold mt-0.5 flex-shrink-0">?</span> {q}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {lastInsights.intake_note && (
-                <div className="p-3 bg-teal-50 rounded-lg border border-teal-100 text-xs text-teal-800">
-                  {lastInsights.intake_note}
-                </div>
-              )}
-            </div>
+          ) : activeInsight ? (
+            <InsightsPanel data={activeInsight.insights} patientName={activeInsight.patientName} />
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Brain className="w-10 h-10 text-slate-200 mb-3" />
@@ -566,7 +592,22 @@ Return ONLY JSON:
                 <div className="text-sm font-medium text-slate-800">{p.name}</div>
                 <div className="text-xs text-slate-500">{p.id} · {p.age}y · {p.gender} · {p.phone || "no phone"}</div>
               </div>
-              <span className="text-xs text-slate-500">{p.pastVisits.length} visits</span>
+              <div className="flex items-center gap-3">
+                {p.registrationInsights && (
+                  <button
+                    onClick={() => {
+                      clearTimeout(flashTimer.current);
+                      setFlashInsight(null);
+                      setViewInsight({ patientName: p.name, insights: p.registrationInsights });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="text-xs text-teal-600 hover:text-teal-800 border border-teal-200 hover:border-teal-400 bg-teal-50 hover:bg-teal-100 rounded-md px-2.5 py-1 transition-colors flex items-center gap-1"
+                  >
+                    <Brain className="w-3 h-3" /> View AI Insight
+                  </button>
+                )}
+                <span className="text-xs text-slate-500">{p.pastVisits.length} visits</span>
+              </div>
             </div>
           ))}
         </div>
