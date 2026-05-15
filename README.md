@@ -1,4 +1,4 @@
-# 🩺 MedAssist AI   https://medassistaipoc.netlify.app/
+# 🩺 MedAssist AI   https://medassistai.krishnaparuchuri.com/
 
 > **Claude-powered clinical workflow platform** — built as a product prototype by [Krishna Chowdari Paruchuri](https://github.com/krishnaparuchuri-productmanager), Product Manager.
 
@@ -77,12 +77,6 @@
 > [`docs/demo-assets/ai-agent-review.md`](docs/demo-assets/ai-agent-review.md)
 
 ---
-
-## 🎬 Original Product Walkthrough
-
-<video src="docs/walkthrough.mp4" controls width="100%" style="border-radius:12px"></video>
-
-> Can't see the video? [Download walkthrough.mp4](docs/walkthrough.mp4)
 
 A full-stack React web application that uses Anthropic's Claude API to automate and augment every stage of a clinical encounter — from patient registration through to insurance claim generation.
 
