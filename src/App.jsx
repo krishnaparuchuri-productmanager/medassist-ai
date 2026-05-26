@@ -1857,6 +1857,9 @@ export default function App() {
       <Sidebar user={user} screen={screen} setScreen={setScreen} onLogout={() => setUser(null)} doctorPatientName={doctorPatientName} />
       <main className="flex-1 overflow-auto p-8">
         {screens[user.role]?.[screen] ?? null}
+        <footer style={{textAlign:'center', padding:'24px', fontSize:'13px', color:'#6b7280'}}>
+          A project by <a href="https://krishnaparuchuri.com" style={{color:'inherit'}}>Krishna Paruchuri</a>
+        </footer>
       </main>
       <Toast toasts={toasts} />
     </div>
