@@ -622,7 +622,15 @@ Return ONLY JSON:
             </div>
             <div>
               <label className="text-xs text-slate-500">Phone</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
+              <input
+                value={form.phone}
+                onChange={e => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setForm({ ...form, phone: digits });
+                }}
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="10-digit number"
                 className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
             <div>
