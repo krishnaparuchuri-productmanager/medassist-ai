@@ -17,7 +17,7 @@ function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin || "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Eval-Token",
   };
 }
 
@@ -35,6 +35,20 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   const origin = env.ALLOWED_ORIGIN || "*";
   const cors = corsHeaders(origin);
+
+  // ── Eval token guard (staging only) ───────────────────────────────────────
+  // If EVAL_TOKEN is set in env, requests must include X-Eval-Token header.
+  // Production env does not set EVAL_TOKEN so this check is skipped there.
+  const evalToken = env.EVAL_TOKEN;
+  if (evalToken) {
+    const provided = request.headers.get("X-Eval-Token") || "";
+    if (provided !== evalToken) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorised: invalid eval token." }),
+        { status: 401, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+  }
 
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) {
