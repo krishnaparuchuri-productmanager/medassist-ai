@@ -196,7 +196,7 @@ const priorClaimsCorpus = [
 ];
 
 // ─── CLAUDE API ───────────────────────────────────────────────
-async function callClaude(prompt, systemPrompt = "") {
+async function callClaude(prompt, systemPrompt = "", task_type = null) {
   try {
     const res = await fetch("/api/claude", {
       method: "POST",
@@ -204,6 +204,7 @@ async function callClaude(prompt, systemPrompt = "") {
       body: JSON.stringify({
         model: MODEL, max_tokens: 2000,
         ...(systemPrompt ? { system: systemPrompt } : {}),
+        ...(task_type   ? { task_type }             : {}),
         messages: [{ role: "user", content: prompt }]
       })
     });
@@ -213,7 +214,7 @@ async function callClaude(prompt, systemPrompt = "") {
   } catch (e) { console.error("Claude error:", e); return null; }
 }
 
-async function callClaudeWithFile(prompt, file, systemPrompt = "") {
+async function callClaudeWithFile(prompt, file, systemPrompt = "", task_type = null) {
   try {
     const base64 = await new Promise((res, rej) => {
       const r = new FileReader();
@@ -234,6 +235,7 @@ async function callClaudeWithFile(prompt, file, systemPrompt = "") {
       body: JSON.stringify({
         model: MODEL, max_tokens: 2000,
         ...(systemPrompt ? { system: systemPrompt } : {}),
+        ...(task_type   ? { task_type }             : {}),
         messages: [{ role: "user", content }]
       })
     });
@@ -501,7 +503,8 @@ Return ONLY JSON:
   "suggested_questions": ["important intake questions not yet captured"],
   "intake_note": "one sentence on completeness and any flags"
 }`,
-      "You are a clinical intake assistant. Output only valid JSON."
+      "You are a clinical intake assistant. Output only valid JSON.",
+      "registration"
     );
     const insights = parseJSON(raw);
     setInsightLoading(false);
@@ -778,7 +781,8 @@ function AppointmentScreen({ patients, setPatients, toast }) {
       `Suggest 3 appointment time slots for the next 7 days starting ${TODAY}.
 Patient: ${JSON.stringify({ name: patient.name, age: patient.age, history: patient.history, lastVisit: patient.pastVisits[0] })}.
 Return ONLY JSON: { "suggestions": [{ "date": "YYYY-MM-DD", "time": "HH:MM AM/PM", "doctor": "Dr. Name", "reasoning": "brief why" }], "gaps": [] }`,
-      "You are a clinic scheduling assistant. Output only valid JSON."
+      "You are a clinic scheduling assistant. Output only valid JSON.",
+      "scheduling"
     );
     const parsed = parseJSON(raw);
     setSuggestions(parsed ?? { suggestions: [], gaps: ["Could not parse AI response"] });
@@ -883,7 +887,8 @@ Return ONLY JSON:
   "denial_risk_notes": [],
   "similar_prior_cases": []
 }`,
-      "You are a medical coding assistant. Output only valid JSON."
+      "You are a medical coding assistant. Output only valid JSON.",
+      "billing"
     );
     const claim = parseJSON(raw);
     if (claim) {
@@ -1031,7 +1036,8 @@ Return ONLY JSON: {
   "summary": "2–3 sentence clinical brief",
   "alerts": ["time-sensitive item or overdue screening — keep each under 10 words"]
 }`,
-      "You are a clinical assistant briefing a doctor before an encounter. Be concise. Output only valid JSON."
+      "You are a clinical assistant briefing a doctor before an encounter. Be concise. Output only valid JSON.",
+      "scribe"
     );
     const brief = parseJSON(raw);
     if (brief) {
@@ -1051,7 +1057,8 @@ PATIENT: ${JSON.stringify({ name: patient.name, age: patient.age, gender: patien
 RECENT NOTE: ${JSON.stringify(patient.capturedNote || "Not captured")}
 Today: ${TODAY}
 Return ONLY JSON: { "suggested_date": "YYYY-MM-DD", "suggested_time": "HH:MM AM/PM", "doctor": "Dr. Name", "reason": "1 sentence clinical reason for this follow-up timing" }`,
-      "You are a clinical scheduling assistant. Output only valid JSON."
+      "You are a clinical scheduling assistant. Output only valid JSON.",
+      "scheduling"
     );
     const suggestion = parseJSON(raw);
     if (suggestion) {
@@ -1280,7 +1287,8 @@ function CaptureScreen({ patients, setPatients, toast, doctorPatientId, setDocto
 CONVERSATION: ${conversation}
 ${ocrCombined ? `OLD RECORDS (OCR):\n${ocrCombined}` : ""}
 Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "examination_findings": "", "assessment": "", "plan": "", "extracted_orders": { "medications": [], "procedures": [], "labs": [], "imaging": [] }, "patient_quotes": [], "gaps": [] }`,
-      "You are a clinical scribe AI. Output only valid JSON."
+      "You are a clinical scribe AI. Output only valid JSON.",
+      "scribe"
     );
     const note = parseJSON(raw);
     if (note) {
@@ -1307,7 +1315,7 @@ Return ONLY JSON: { "chief_complaint": "", "history_of_present_illness": "", "ex
     for (const entry of entries) {
       const text = await callClaudeWithFile(
         "Extract all text from this medical document. Preserve structure. Output plain text only.",
-        entry.file, "You are an OCR assistant for medical documents."
+        entry.file, "You are an OCR assistant for medical documents.", "scribe"
       );
       setOcrFiles(prev => prev.map(f =>
         f.name === entry.name && f.status === "pending"
@@ -1539,7 +1547,8 @@ function OrdersScreen({ patients, setPatients, toast, doctorPatientId, setDoctor
 Patient: age ${patient.age}, ${patient.gender}, history: ${patient.history.join(", ")}.
 Dictation: "${input}".
 Return ONLY JSON: { "orders": [{ "test_name": "", "loinc_code": "", "category": "lab|imaging|other", "priority": "high|medium|low", "rationale": "" }], "gaps": [] }`,
-      "You are a clinical order entry assistant. Output only valid JSON."
+      "You are a clinical order entry assistant. Output only valid JSON.",
+      "orders"
     );
     const order = parseJSON(raw);
     if (order) {
@@ -1623,7 +1632,8 @@ function ResultsScreen({ patients, setPatients, toast, doctorPatientId, setDocto
       `Analyze these lab/imaging results. Return ONLY JSON:
 { "results": [{ "test": "", "value": "", "unit": "", "range": "", "range_low": 0, "range_high": 0, "numeric_value": 0, "status": "low|normal|high|critical", "read_aloud": "" }], "significant_findings": [], "follow_up_suggestions": [], "report_date": "${TODAY}" }
 RESULTS TEXT:\n${rawResults}`,
-      "You are a clinical results analysis assistant. Output only valid JSON."
+      "You are a clinical results analysis assistant. Output only valid JSON.",
+      "results"
     );
     const results = parseJSON(raw);
     if (results) {
@@ -1643,7 +1653,7 @@ RESULTS TEXT:\n${rawResults}`,
     for (const file of files) {
       const text = await callClaudeWithFile(
         `Extract lab values from this report. Return ONLY JSON: { "report_date": "YYYY-MM-DD", "results": [{ "test": "", "value": "", "unit": "", "range": "", "range_low": 0, "range_high": 0, "numeric_value": 0, "status": "low|normal|high|critical" }] }`,
-        file, "You are an OCR + medical report parser. Output only valid JSON."
+        file, "You are an OCR + medical report parser. Output only valid JSON.", "results"
       );
       const parsed = parseJSON(text);
       const entry = parsed
