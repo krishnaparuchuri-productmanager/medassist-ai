@@ -59,6 +59,74 @@ const ALLOWED_MODELS = new Set([
 const MAX_TOKENS_CAP   = 4000;
 const AGENTOPS_TIMEOUT = 5000; // ms — fire-and-forget trace push
 
+// ── Pre-guardrail checks (run before calling Anthropic) ───────────────────────
+// Returns { valid: true } or { valid: false, error: string, status: number }
+function preGuardrail(taskType, messages) {
+  const userText = messages
+    .filter((m) => m.role === "user")
+    .map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)))
+    .join(" ")
+    .trim();
+
+  // ── Scribe: must have enough clinical detail to produce a meaningful note ──
+  if (taskType === "scribe") {
+    const MIN_LENGTH = 30; // characters
+    const CLINICAL_KEYWORDS = [
+      "patient", "complaint", "pain", "symptoms", "history", "presents",
+      "fever", "cough", "bp", "hr", "medication", "allergies", "diagnosis",
+      "assessment", "years", "male", "female", "old", "chronic", "acute",
+    ];
+    if (userText.length < MIN_LENGTH) {
+      return {
+        valid: false,
+        status: 400,
+        error: "Insufficient clinical context. Please provide patient details, chief complaint, and relevant history before generating a SOAP note.",
+      };
+    }
+    const hasKeyword = CLINICAL_KEYWORDS.some((kw) =>
+      userText.toLowerCase().includes(kw)
+    );
+    if (!hasKeyword) {
+      return {
+        valid: false,
+        status: 400,
+        error: "Insufficient clinical context. Please include patient demographics, chief complaint, and clinical history.",
+      };
+    }
+  }
+
+  // ── Billing: must reference a clinical note or diagnosis ──────────────────
+  if (taskType === "billing") {
+    const BILLING_KEYWORDS = [
+      "icd", "cpt", "diagnosis", "procedure", "note", "soap", "visit",
+      "encounter", "assessment", "plan", "history", "complaint", "patient",
+    ];
+    const hasKeyword = BILLING_KEYWORDS.some((kw) =>
+      userText.toLowerCase().includes(kw)
+    );
+    if (!hasKeyword || userText.length < 20) {
+      return {
+        valid: false,
+        status: 400,
+        error: "Clinical documentation required. Please provide a SOAP note or clinical encounter details before requesting billing codes.",
+      };
+    }
+  }
+
+  // ── Orders: must reference a clinical reason ──────────────────────────────
+  if (taskType === "orders") {
+    if (userText.length < 15) {
+      return {
+        valid: false,
+        status: 400,
+        error: "Clinical context required. Please provide a clinical reason or patient presentation before requesting orders.",
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
 // ── PHI anonymisation ─────────────────────────────────────────────────────────
 function anonymiseForTrace(text) {
   let safe = String(text || "").slice(0, 400);
@@ -131,13 +199,23 @@ export async function onRequestPost(context) {
   }
 
   // ── 4. Router — resolve task_type → agent config ──────────────────────────────
-  const taskType   = parsedBody.task_type || null;
-  const agentCfg   = taskType ? AGENT_CONFIG[taskType] : null;
+  const taskType = parsedBody.task_type || null;
+  const agentCfg = taskType ? AGENT_CONFIG[taskType] : null;
 
   // Strip task_type — Anthropic does not accept unknown fields
   delete parsedBody.task_type;
 
   if (agentCfg) {
+    // ── Pre-guardrail: validate input before spending tokens ──────────────────
+    const messages = parsedBody.messages || [];
+    const guard    = preGuardrail(taskType, messages);
+    if (!guard.valid) {
+      return new Response(
+        JSON.stringify({ error: guard.error }),
+        { status: guard.status, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
     // Override model and system prompt with agent-specific values
     parsedBody.model  = agentCfg.model;
     parsedBody.system = agentCfg.system;
