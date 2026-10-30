@@ -23,7 +23,7 @@
  *   LANGSMITH_API_KEY   — LangSmith personal token (from APAC workspace)
  *   LANGSMITH_ENDPOINT  — https://apac.api.smith.langchain.com
  *   LANGSMITH_PROJECT   — medassist  (or your project name)
- *   AGENTOPS_API_URL    — https://agentops-production-980c.up.railway.app
+ *   AGENTOPS_API_URL    — https://agentops.krishnaparuchuri.com/api
  */
 
 // ── Model whitelist ────────────────────────────────────────────────────────────
@@ -157,6 +157,8 @@ async function pushAgentOpsCost(env, { agentId, model, inputTokens, outputTokens
   const day  = new Date().toISOString().slice(0, 10);
   const cost = calcCost(model, inputTokens || 0, outputTokens || 0);
 
+  // mode "add" accumulates onto today's totals; without it AgentOps would
+  // replace the whole day's record with this single call.
   await fetch(`${base}/agents/${agentId}/costs`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
@@ -167,20 +169,19 @@ async function pushAgentOpsCost(env, { agentId, model, inputTokens, outputTokens
       output_tokens: outputTokens || 0,
       cost_usd:      cost,
       review_count:  1,
+      mode:          "add",
     }),
   });
 
-  // Also push a router-level cost record
+  // Count the request against the router too (no tokens of its own)
+  if (agentId === "medassist-router") return;
   await fetch(`${base}/agents/medassist-router/costs`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({
       recorded_date: day,
-      total_tokens:  0,
-      input_tokens:  0,
-      output_tokens: 0,
-      cost_usd:      0,
       review_count:  1,
+      mode:          "add",
     }),
   });
 }
